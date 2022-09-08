@@ -1,12 +1,6 @@
 github.com/golang/mock v1.6.0 h1:ErTB+efbowRARo13NNdxyJji2egdxLGQhRaY+DUumQc=
-github.com/google/go-cmp v0.5.8 h1:e6P7q2lk1O+qJJb4BtCQXlK8vWEO8V1ZeuEdJNOqZyg=
+github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
 github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/modernice/goes v0.2.0 h1:12giUHR1O4Tp0Ui9Bt3766HuRatDJgsShHycDAvkiBc=
-github.com/modernice/goes v0.2.0/go.mod h1:0mukBHzXFVmfy1KlZsVSPNf8m9eeDRtG0a+DmkxH/Ko=
-github.com/modernice/goes v0.2.1 h1:2bDgoA+Uh6qa8UEneIlrsYxkdjh/ygV49nTGfAwBp9M=
-github.com/modernice/goes v0.2.1/go.mod h1:PHyWTpge+VmNvfieLG9Cs6E9ifgdGrAD7LYnzckcGGY=
-github.com/modernice/goes v0.2.2 h1:Jyhcb7et5jk+zOQiSRMJNlw5iu6YlGl5AhbN11bOWmA=
-github.com/modernice/goes v0.2.2/go.mod h1:up6XLP1TqpDT3ylOKbaSC0gN1R9Ve1sgLWs0hk7RiWw=
 github.com/modernice/goes v0.2.3 h1:p+R1x9HAco0TcfDO2aAF/DqBTdgD67V4EbntQBJef0Q=
 github.com/modernice/goes v0.2.3/go.mod h1:up6XLP1TqpDT3ylOKbaSC0gN1R9Ve1sgLWs0hk7RiWw=
