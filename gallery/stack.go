@@ -16,6 +16,11 @@ type Stack[ID, ImageID comparable] struct {
 // Tags are the tags of a [Stack].
 type Tags = imgtools.Tags
 
+// NewTags returns a new [Tags] with the given tags. Duplicates are removed.
+func NewTags(tags ...string) Tags {
+	return imgtools.NewTags(tags...)
+}
+
 // Image is an image of a [Stack]. An image may be the original image of the
 // stack, or a variant of the original image. The ID of an Image is unique
 // within a [Stack].
@@ -24,6 +29,27 @@ type Image[ID comparable] struct {
 
 	ID       ID   `json:"id"`
 	Original bool `json:"original"`
+}
+
+// Clone returns a deep-copy of the image.
+func (img Image[ID]) Clone() Image[ID] {
+	img.Image = img.Image.Clone()
+	return img
+}
+
+// ZeroStack returns the zero-value [Stack].
+func ZeroStack[ID, ImageID comparable]() (zero Stack[ID, ImageID]) {
+	return zero
+}
+
+// Clone returns a deep-copy of the Stack.
+func (s Stack[ID, ImageID]) Clone() Stack[ID, ImageID] {
+	variants := make([]Image[ImageID], len(s.Variants))
+	for i, img := range s.Variants {
+		variants[i] = img.Clone()
+	}
+	s.Variants = variants
+	return s
 }
 
 // Original returns the original image of the stack, or the zero [Image] if the
@@ -46,6 +72,11 @@ func (s Stack[ID, ImageID]) Image(id ImageID) (Image[ImageID], bool) {
 		}
 	}
 	return zeroImage[ImageID](), false
+}
+
+// Variant is an alias for s.Image.
+func (s Stack[ID, ImageID]) Variant(id ImageID) (Image[ImageID], bool) {
+	return s.Image(id)
 }
 
 // Tag returns a copy of the [Stack] with the given tags added.

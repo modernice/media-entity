@@ -31,3 +31,13 @@ func Map[E, R any](s []E, fn func(E) R) []R {
 	}
 	return out
 }
+
+// Copy returns a copy of s, with each element copied separately.
+// For a shallow copy, call [slices.Clone] instead.
+func Copy[S ~[]E, E any](s S) S {
+	out := make(S, len(s))
+	for i, v := range s {
+		out[i] = v
+	}
+	return out
+}

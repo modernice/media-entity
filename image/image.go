@@ -1,6 +1,7 @@
 package image
 
 import (
+	"github.com/modernice/media-entity/internal/maps"
 	"github.com/modernice/media-tools/image"
 )
 
@@ -31,5 +32,12 @@ func (img Image) Normalize() Image {
 	if img.Descriptions == nil {
 		img.Descriptions = make(map[string]string)
 	}
+	return img
+}
+
+// Clone returns a deep copy of the image.
+func (img Image) Clone() Image {
+	img.Names = maps.Clone(img.Names)
+	img.Descriptions = maps.Clone(img.Descriptions)
 	return img
 }

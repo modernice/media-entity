@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/modernice/media-entity/gallery"
+	"github.com/modernice/media-entity/internal/galleryx"
 	"github.com/modernice/media-entity/internal/testcmp"
 )
 
@@ -13,7 +14,7 @@ func TestStack_Original(t *testing.T) {
 
 	id := uuid.New()
 
-	img := newImage()
+	img := galleryx.NewImage(uuid.New())
 	stack, err := g.NewStack(id, img)
 	if err != nil {
 		t.Fatalf("add stack: %v", err)

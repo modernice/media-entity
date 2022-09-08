@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/modernice/media-entity/gallery"
+	"github.com/modernice/media-entity/internal/galleryx"
 	"github.com/modernice/media-entity/internal/testcmp"
 )
 
@@ -14,7 +15,7 @@ func TestGallery_NewStack(t *testing.T) {
 
 	id := uuid.New()
 
-	img := newImage()
+	img := galleryx.NewImage(uuid.New())
 	stack, err := g.NewStack(id, img)
 	if err != nil {
 		t.Fatalf("add stack: %v", err)
@@ -47,7 +48,7 @@ func TestGallery_NewStack(t *testing.T) {
 func TestGallery_NewStack_ErrEmptyID(t *testing.T) {
 	g := gallery.New[uuid.UUID, uuid.UUID]()
 
-	if _, err := g.NewStack(uuid.Nil, newImage()); !errors.Is(err, gallery.ErrEmptyID) {
+	if _, err := g.NewStack(uuid.Nil, galleryx.NewImage(uuid.New())); !errors.Is(err, gallery.ErrEmptyID) {
 		t.Fatalf("adding stack with empty stack id should return ErrEmptyID; got %v", err)
 	}
 
@@ -62,12 +63,12 @@ func TestGallery_NewStack_ErrDuplicateID(t *testing.T) {
 
 	id := uuid.New()
 
-	_, err := g.NewStack(id, newImage())
+	_, err := g.NewStack(id, galleryx.NewImage(uuid.New()))
 	if err != nil {
 		t.Fatalf("add stack: %v", err)
 	}
 
-	if _, err := g.NewStack(id, newImage()); !errors.Is(err, gallery.ErrDuplicateID) {
+	if _, err := g.NewStack(id, galleryx.NewImage(uuid.New())); !errors.Is(err, gallery.ErrDuplicateID) {
 		t.Fatalf("adding stack with duplicate id should return ErrDuplicateID; got %v", err)
 	}
 }
@@ -96,10 +97,10 @@ func TestGallery_NewStack_normalizeImage(t *testing.T) {
 func TestGallery_RemoveStack(t *testing.T) {
 	g := gallery.New[uuid.UUID, uuid.UUID]()
 
-	g.NewStack(uuid.New(), newImage())
-	g.NewStack(uuid.New(), newImage())
-	stack, _ := g.NewStack(uuid.New(), newImage())
-	g.NewStack(uuid.New(), newImage())
+	g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
+	g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
+	stack, _ := g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
+	g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
 
 	removed, err := g.RemoveStack(stack.ID)
 	if err != nil {
@@ -118,13 +119,13 @@ func TestGallery_NewVariant(t *testing.T) {
 
 	id := uuid.New()
 
-	original := newImage()
+	original := galleryx.NewImage(uuid.New())
 	stack, err := g.NewStack(id, original)
 	if err != nil {
 		t.Fatalf("add stack: %v", err)
 	}
 
-	variant := newImage()
+	variant := galleryx.NewImage(uuid.New())
 	variant.ID = uuid.New()
 
 	stack, err = g.NewVariant(stack.ID, variant)
@@ -144,7 +145,7 @@ func TestGallery_NewVariant_ErrDuplicateImage(t *testing.T) {
 
 	id := uuid.New()
 
-	original := newImage()
+	original := galleryx.NewImage(uuid.New())
 	stack, err := g.NewStack(id, original)
 	if err != nil {
 		t.Fatalf("add stack: %v", err)
@@ -159,9 +160,9 @@ func TestGallery_NewVariant_ErrDuplicateImage(t *testing.T) {
 func TestGallery_RemoveVariant(t *testing.T) {
 	g := gallery.New[uuid.UUID, uuid.UUID]()
 
-	stack, _ := g.NewStack(uuid.New(), newImage())
+	stack, _ := g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
 
-	variant := newImage()
+	variant := galleryx.NewImage(uuid.New())
 	g.NewVariant(stack.ID, variant)
 
 	removed, err := g.RemoveVariant(stack.ID, variant.ID)
@@ -175,9 +176,9 @@ func TestGallery_RemoveVariant(t *testing.T) {
 func TestGallery_ReplaceVariant(t *testing.T) {
 	g := gallery.New[uuid.UUID, uuid.UUID]()
 
-	stack, _ := g.NewStack(uuid.New(), newImage())
+	stack, _ := g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
 
-	old := newImage()
+	old := galleryx.NewImage(uuid.New())
 	g.NewVariant(stack.ID, old)
 
 	update := old
@@ -198,7 +199,7 @@ func TestGallery_ReplaceVariant(t *testing.T) {
 func TestGallery_Tag_Untag(t *testing.T) {
 	g := gallery.New[uuid.UUID, uuid.UUID]()
 
-	img := newImage()
+	img := galleryx.NewImage(uuid.New())
 	stack, err := g.NewStack(uuid.New(), img)
 	if err != nil {
 		t.Fatalf("add stack: %v", err)
@@ -246,7 +247,7 @@ func TestGallery_Sort(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		id := uuid.New()
 		stackIDs = append(stackIDs, id)
-		if _, err := g.NewStack(id, newImage()); err != nil {
+		if _, err := g.NewStack(id, galleryx.NewImage(uuid.New())); err != nil {
 			t.Fatalf("add stack #%d: %v", i+1, err)
 		}
 	}

@@ -261,6 +261,16 @@ func (g *Base[StackID, ImageID]) Sort(sorting []StackID) {
 	})
 }
 
+// DryRun executes the given function and returns the error that is returned by
+// that function. Any changes made to the gallery's stacks are reverted before
+// returning.
+func (g *Base[StackID, ImageID]) DryRun(fn func(*Base[StackID, ImageID]) error) error {
+	backup := cloneStacks(g.Stacks)
+	err := fn(g)
+	g.Stacks = backup
+	return err
+}
+
 func (g *Base[StackID, ImageID]) replaceStack(id StackID, stack Stack[StackID, ImageID]) {
 	for i, s := range g.Stacks {
 		if s.ID == id {
@@ -272,4 +282,12 @@ func (g *Base[StackID, ImageID]) replaceStack(id StackID, stack Stack[StackID, I
 
 func zeroStack[ID, ImageID comparable]() (zero Stack[ID, ImageID]) {
 	return zero
+}
+
+func cloneStacks[ID, ImageID comparable](stacks []Stack[ID, ImageID]) []Stack[ID, ImageID] {
+	out := make([]Stack[ID, ImageID], len(stacks))
+	for i, stack := range stacks {
+		out[i] = stack.Clone()
+	}
+	return out
 }

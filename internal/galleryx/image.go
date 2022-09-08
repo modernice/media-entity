@@ -1,14 +1,14 @@
-package gallery_test
+package galleryx
 
 import (
-	"github.com/google/uuid"
 	"github.com/modernice/media-entity/gallery"
 	"github.com/modernice/media-entity/image"
 )
 
-func newImage() gallery.Image[uuid.UUID] {
-	return gallery.Image[uuid.UUID]{
-		ID: uuid.New(),
+// NewImage returns a new stub image with the given id.
+func NewImage[ID comparable](id ID) gallery.Image[ID] {
+	return gallery.Image[ID]{
+		ID: id,
 		Image: image.Image{
 			Storage: image.Storage{
 				Provider: "fs",
