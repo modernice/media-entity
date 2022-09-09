@@ -8,6 +8,7 @@ import (
 // Image represents a single image.
 type Image struct {
 	Storage      Storage           `json:"storage"`
+	Filename     string            `json:"filename"`
 	Filesize     int               `json:"filesize"`
 	Dimensions   Dimensions        `json:"dimensions"`
 	Names        map[string]string `json:"names"`

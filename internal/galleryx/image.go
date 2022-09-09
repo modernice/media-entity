@@ -14,6 +14,7 @@ func NewImage[ID comparable](id ID) gallery.Image[ID] {
 				Provider: "fs",
 				Path:     "/foo/bar/baz.jpg",
 			},
+			Filename:   "baz.jpg",
 			Filesize:   12345,
 			Dimensions: image.Dimensions{1920, 1080},
 			Names: map[string]string{

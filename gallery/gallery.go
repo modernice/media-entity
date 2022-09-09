@@ -22,8 +22,8 @@ var (
 	// ErrStackNotFound is returned when a [Stack] cannot be found in a gallery.
 	ErrStackNotFound = errors.New("stack not found in gallery")
 
-	// ErrImageNotFound is returned when an [Image] cannot be found in a [Stack].
-	ErrImageNotFound = errors.New("image not found in stack")
+	// ErrVariantNotFound is returned when an [Image] cannot be found in a [Stack].
+	ErrVariantNotFound = errors.New("variant not found in stack")
 )
 
 // Base provides the core implementation for image galleries.
@@ -159,7 +159,7 @@ func (g *Base[StackID, ImageID]) RemoveVariant(stackID StackID, imageID ImageID)
 
 	img, ok := stack.Image(imageID)
 	if !ok {
-		return zeroImage[ImageID](), ErrImageNotFound
+		return zeroImage[ImageID](), ErrVariantNotFound
 	}
 
 	stack.Variants = slicex.Filter(stack.Variants, func(v Image[ImageID]) bool {
@@ -192,7 +192,7 @@ func (g *Base[StackID, ImageID]) ReplaceVariant(stackID StackID, variant Image[I
 		}
 	}
 
-	return stack, ErrImageNotFound
+	return stack, ErrVariantNotFound
 }
 
 // Tag adds the given tags to the [Stack] with the given id, and returns the
