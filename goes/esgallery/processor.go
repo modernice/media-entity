@@ -19,17 +19,6 @@ import (
 	"github.com/modernice/media-tools/image"
 )
 
-// // ProcessorConfig is the type constraint for a [Config] that can be passed to a [*Processor].
-// type ProcessorConfig[StackID, ImageID ID] interface {
-// 	Config[StackID, ImageID]
-
-// 	// Encoding returns the configured [Encoding].
-// 	Encoding() Encoding
-
-// 	// NewVariantID returns a new ID for a new variant of a processed [gallery.Stack].
-// 	NewVariantID() ImageID
-// }
-
 // Processor post-processes [gallery.Stack]s and uploads the processed images
 // to (cloud) storage.
 type Processor[StackID, ImageID ID] struct {
