@@ -29,6 +29,8 @@ type Gallery struct {
   *esgallery.Gallery[uuid.UUID, uuid.UUID, *Gallery]
 }
 
+type GalleryRepository = aggregate.TypedRepository[*Gallery]
+
 func NewGallery(id uuid.UUID) *Gallery {
   g:= &Gallery{Base: aggregate.New(GalleryAggregate, id)}
   g.Gallery = esgallery.New[uuid.UUID, uuid.UUID](g)
@@ -109,7 +111,7 @@ import (
   "github.com/modernice/media-tools/image/compression"
 )
 
-func run(pp *PostProcessor) {
+func run(pp *PostProcessor, galleries GalleryRepository) {
   // Setup a processing pipeline
   pipeline := image.Pipeline{
     image.Resize(image.DimensionMap{
@@ -122,14 +124,31 @@ func run(pp *PostProcessor) {
   }
 
   // Start the post-processor as a background task
-  errs, err := pp.Run(context.TODO(), pipeline)
+  results, errs, err := pp.Run(context.TODO(), pipeline)
   if err != nil {
     panic(err)
   }
 
   // Log processing errors
-  for err := range errs {
-    log.Printf("post-processor: %v", err)
+	go func(){
+    for err := range errs {
+      log.Printf("post-processor: %v", err)
+    }
+  }()
+
+  for result := range results {
+    g, err := galleries.Fetch(context.TODO(), result.Gallery.ID)
+    if err != nil {
+      panic(fmt.Errorf("fetch gallery: %w", err))
+    }
+
+    if err := result.Apply(g); err != nil {
+      panic(fmt.Errorf("apply processor result: %w", err))
+    }
+
+    if err := galleries.Save(context.TODO(), result); err != nil {
+      panic(fmt.Errorf("save gallery: %w", err))
+    }
   }
 }
 ```
