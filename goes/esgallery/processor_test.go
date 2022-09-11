@@ -23,9 +23,8 @@ func TestProcessor_Process(t *testing.T) {
 	defer cancel()
 
 	var storage esgallery.MemoryStorage
-	cfg := UUIDConfig()
-	uploader := esgallery.NewUploader(cfg, &storage)
-	pp := esgallery.NewProcessor(cfg, uploader, &storage)
+	uploader := esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
+	pp := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
 
 	pipeline := imgtools.Pipeline{
 		imgtools.Resize(imgtools.DimensionMap{
@@ -59,13 +58,12 @@ func TestProcessor_Run_stackAdded(t *testing.T) {
 	defer cancel()
 
 	var storage esgallery.MemoryStorage
-	cfg := UUIDConfig()
-	uploader := esgallery.NewUploader(cfg, &storage)
+	uploader := esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
 	ebus := eventbus.New()
 	estore := eventstore.WithBus(eventstore.New(), ebus)
 	repo := repository.New(estore)
 	galleries := repository.Typed(repo, NewTestGallery)
-	p := esgallery.NewProcessor(cfg, uploader, &storage)
+	p := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
 	pp := esgallery.NewPostProcessor(p, ebus, galleries.Fetch)
 
 	pipeline := imgtools.Pipeline{
@@ -113,13 +111,12 @@ func TestProcessor_Run_variantReplaced_original(t *testing.T) {
 	defer cancel()
 
 	var storage esgallery.MemoryStorage
-	cfg := UUIDConfig()
-	uploader := esgallery.NewUploader(cfg, &storage)
+	uploader := esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
 	ebus := eventbus.New()
 	estore := eventstore.WithBus(eventstore.New(), ebus)
 	repo := repository.New(estore)
 	galleries := repository.Typed(repo, NewTestGallery)
-	p := esgallery.NewProcessor(cfg, uploader, &storage)
+	p := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
 	pp := esgallery.NewPostProcessor(p, ebus, galleries.Fetch)
 
 	pipeline := imgtools.Pipeline{
@@ -177,13 +174,12 @@ func TestProcessor_Run_variantReplaced_variant(t *testing.T) {
 	defer cancel()
 
 	var storage esgallery.MemoryStorage
-	cfg := UUIDConfig()
-	uploader := esgallery.NewUploader(cfg, &storage)
+	uploader := esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
 	ebus := eventbus.New()
 	estore := eventstore.WithBus(eventstore.New(), ebus)
 	repo := repository.New(estore)
 	galleries := repository.Typed(repo, NewTestGallery)
-	p := esgallery.NewProcessor(cfg, uploader, &storage)
+	p := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
 	pp := esgallery.NewPostProcessor(p, ebus, galleries.Fetch)
 
 	pipeline := imgtools.Pipeline{
@@ -234,6 +230,68 @@ func TestProcessor_Run_variantReplaced_variant(t *testing.T) {
 		return
 	case <-results:
 		t.Fatalf("post-processor should not have triggered")
+	}
+}
+
+func TestProcessor_Run_WithAutoApply(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var storage esgallery.MemoryStorage
+	uploader := esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
+	ebus := eventbus.New()
+	estore := eventstore.WithBus(eventstore.New(), ebus)
+	repo := repository.New(estore)
+	galleries := repository.Typed(repo, NewTestGallery)
+	p := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
+	pp := esgallery.NewPostProcessor(p, ebus, galleries.Fetch, esgallery.WithAutoApply[uuid.UUID, uuid.UUID](true, galleries.Save))
+
+	pipeline := imgtools.Pipeline{
+		imgtools.Resize(imgtools.DimensionMap{
+			"sm": {640},
+			"md": {960},
+			"lg": {1280},
+		}),
+	}
+
+	g := NewTestGallery(uuid.New())
+
+	r := newExample()
+	originalVariant := galleryx.NewImage(uuid.New())
+	stack, _ := g.NewStack(uuid.New(), originalVariant)
+
+	_, err := uploader.Upload(ctx, g, stack.ID, originalVariant.ID, r)
+	if err != nil {
+		t.Fatalf("upload original image: %v", err)
+	}
+
+	results, errs, err := pp.Run(ctx, pipeline)
+	if err != nil {
+		t.Fatalf("run pipeline: %v", err)
+	}
+	go testx.PanicOn(errs)
+
+	// Trigger post-processor
+	if err := galleries.Save(ctx, g); err != nil {
+		t.Fatalf("save gallery: %v", err)
+	}
+
+	var result esgallery.ProcessorResult[uuid.UUID, uuid.UUID]
+	select {
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for post-processor result")
+	case result = <-results:
+	}
+
+	testProcessorResult(t, result, &storage, g, stack)
+
+	g, err = galleries.Fetch(ctx, g.ID)
+	if err != nil {
+		t.Fatalf("fetch gallery: %v", err)
+	}
+
+	if g.AggregateVersion() <= 2 {
+		t.Fatalf("expected aggregate version to greater than 2, is %d", g.AggregateVersion())
 	}
 }
 

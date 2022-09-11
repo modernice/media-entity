@@ -16,10 +16,9 @@ func TestUploader_Upload(t *testing.T) {
 	var storage esgallery.MemoryStorage
 	storage.SetRoot("esgallery")
 
-	cfg := UUIDConfig()
 	g := NewTestGallery(uuid.New())
 
-	up := esgallery.NewUploader(cfg, &storage)
+	up := esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
 
 	stack, _ := g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
 

@@ -19,7 +19,7 @@ type Uploader[StackID, ImageID ID] struct {
 }
 
 // NewUploader returns an [*Uploader] that uploads images to the provided [Storage].
-func NewUploader[StackID, ImageID ID](cfg Config[StackID, ImageID], storage Storage) *Uploader[StackID, ImageID] {
+func NewUploader[StackID, ImageID ID](storage Storage) *Uploader[StackID, ImageID] {
 	return &Uploader[StackID, ImageID]{
 		storage: storage,
 	}

@@ -50,6 +50,6 @@ func expectStackSorting[StackID, ImageID comparable](t *testing.T, sorting []Sta
 	}
 }
 
-func UUIDConfig() esgallery.Config[uuid.UUID, uuid.UUID] {
-	return esgallery.Configure(esgallery.DefaultEncoder, uuid.New, uuid.New)
-}
+// func UUIDConfig() esgallery.Config[uuid.UUID, uuid.UUID] {
+// 	return esgallery.Configure(esgallery.DefaultEncoder, uuid.New, uuid.New)
+// }

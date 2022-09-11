@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/modernice/goes/aggregate"
@@ -18,23 +19,24 @@ import (
 	"github.com/modernice/media-tools/image"
 )
 
-// ProcessorConfig is the type constraint for a [Config] that can be passed to a [*Processor].
-type ProcessorConfig[StackID, ImageID ID] interface {
-	Config[StackID, ImageID]
+// // ProcessorConfig is the type constraint for a [Config] that can be passed to a [*Processor].
+// type ProcessorConfig[StackID, ImageID ID] interface {
+// 	Config[StackID, ImageID]
 
-	// Encoding returns the configured [Encoding].
-	Encoding() Encoding
+// 	// Encoding returns the configured [Encoding].
+// 	Encoding() Encoding
 
-	// NewVariantID returns a new ID for a new variant of a processed [gallery.Stack].
-	NewVariantID() ImageID
-}
+// 	// NewVariantID returns a new ID for a new variant of a processed [gallery.Stack].
+// 	NewVariantID() ImageID
+// }
 
 // Processor post-processes [gallery.Stack]s and uploads the processed images
 // to (cloud) storage.
-type Processor[Cfg ProcessorConfig[StackID, ImageID], StackID, ImageID ID] struct {
-	config   Cfg
-	uploader *Uploader[StackID, ImageID]
-	storage  Storage
+type Processor[StackID, ImageID ID] struct {
+	encoding     Encoding
+	newVariantID func() ImageID
+	uploader     *Uploader[StackID, ImageID]
+	storage      Storage
 }
 
 // ProcessorResult is the result post-processing a [gallery.Stack].
@@ -68,11 +70,6 @@ type ProcessableGallery[StackID, ImageID ID] interface {
 
 	// Stack returns the given [gallery.Stack].
 	Stack(StackID) (gallery.Stack[StackID, ImageID], bool)
-}
-
-// ResultTarget is the type constraint for the target of [ApplyProcessingResult].
-type ResultTarget[StackID, ImageID ID] interface {
-	ProcessableGallery[StackID, ImageID]
 
 	// ReplaceVariant replaces a variant of a [gallery.Stack].
 	ReplaceVariant(StackID, gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error)
@@ -81,44 +78,8 @@ type ResultTarget[StackID, ImageID ID] interface {
 	AddVariant(StackID, gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error)
 }
 
-// Config provides a [*Processor] with the factory functions for [gallery.Stack]
-// and [gallery.Image] ids. For example, to use UUIDs for stacks, and strings for
-// images/variants, create a config like the following:
-//
-//	cfg := Configure(uuid.New, func() string { return "<some-unique-string>" })
-type Config[StackID, ImageID ID] struct {
-	encoding     Encoding
-	newStackID   func() StackID
-	newVariantID func() ImageID
-}
-
-// Configure configures the factory functions for [gallery.Stack] and
-// [gallery.Image] ids.
-func Configure[StackID, ImageID ID](enc Encoding, newStackID func() StackID, newVariantID func() ImageID) Config[StackID, ImageID] {
-	return Config[StackID, ImageID]{
-		encoding:     enc,
-		newStackID:   newStackID,
-		newVariantID: newVariantID,
-	}
-}
-
-// Encoding returns the configured [Encoding].
-func (cfg Config[StackID, ImageID]) Encoding() Encoding {
-	return cfg.encoding
-}
-
-// NewStackID returns a new ID for a [gallery.Stack].
-func (cfg Config[StackID, ImageID]) NewStackID() StackID {
-	return cfg.newStackID()
-}
-
-// NewVariantID returns a new ID for a [gallery.Image].
-func (cfg Config[StackID, ImageID]) NewVariantID() ImageID {
-	return cfg.newVariantID()
-}
-
 // ApplyProcessorResult applies a [ProcessorResult] to a Gallery by raising the appropriate events.
-func ApplyProcessorResult[Gallery ResultTarget[StackID, ImageID], StackID, ImageID ID](result ProcessorResult[StackID, ImageID], g Gallery) error {
+func ApplyProcessorResult[Gallery ProcessableGallery[StackID, ImageID], StackID, ImageID ID](result ProcessorResult[StackID, ImageID], g Gallery) error {
 	stack, ok := g.Stack(result.StackID)
 	if !ok {
 		return fmt.Errorf("stack %q: %w", result.StackID, gallery.ErrStackNotFound)
@@ -143,20 +104,22 @@ func ApplyProcessorResult[Gallery ResultTarget[StackID, ImageID], StackID, Image
 }
 
 // Apply is a shortcut for ApplyProcessorResult(result, g).
-func (result ProcessorResult[StackID, ImageID]) Apply(g ResultTarget[StackID, ImageID]) error {
+func (result ProcessorResult[StackID, ImageID]) Apply(g ProcessableGallery[StackID, ImageID]) error {
 	return ApplyProcessorResult(result, g)
 }
 
 // NewProcessor returns a post-processor for gallery images.
-func NewProcessor[Cfg ProcessorConfig[StackID, ImageID], StackID, ImageID ID](
-	cfg Cfg,
-	uploader *Uploader[StackID, ImageID],
+func NewProcessor[StackID, ImageID ID](
+	enc Encoding,
 	storage Storage,
-) *Processor[Cfg, StackID, ImageID] {
-	return &Processor[Cfg, StackID, ImageID]{
-		config:   cfg,
-		uploader: uploader,
-		storage:  storage,
+	uploader *Uploader[StackID, ImageID],
+	newVariantID func() ImageID,
+) *Processor[StackID, ImageID] {
+	return &Processor[StackID, ImageID]{
+		encoding:     enc,
+		storage:      storage,
+		uploader:     uploader,
+		newVariantID: newVariantID,
 	}
 }
 
@@ -174,7 +137,7 @@ func NewProcessor[Cfg ProcessorConfig[StackID, ImageID], StackID, ImageID ID](
 //	result, err := p.Process(context.TODO(), image.Pipeline{...}, gallery, stackID)
 //	// handle err
 //	err := result.Apply(gallery)
-func (p *Processor[Config, StackID, ImageID]) Process(
+func (p *Processor[StackID, ImageID]) Process(
 	ctx context.Context,
 	pipeline image.Pipeline,
 	g ProcessableGallery[StackID, ImageID],
@@ -220,12 +183,12 @@ func (p *Processor[Config, StackID, ImageID]) Process(
 		// to the Stack.
 		variantID := original.ID
 		if !pimg.Original {
-			variantID = p.config.NewVariantID()
+			variantID = p.newVariantID()
 		}
 
 		// Encode the variant into the original image format that was detected earlier.
 		var buf bytes.Buffer
-		if err := p.config.Encoding().Encode(&buf, contentType, pimg.Image); err != nil {
+		if err := p.encoding.Encode(&buf, contentType, pimg.Image); err != nil {
 			return zeroResult[StackID, ImageID](), fmt.Errorf("encode processed image: %w", err)
 		}
 
@@ -276,42 +239,100 @@ func (p *Processor[Config, StackID, ImageID]) Process(
 //	galleries := repository.Typed(repo, NewGallery)
 //	pp := NewPostProcessor(p, bus, galleries.Fetch)
 type PostProcessor[
-	Config ProcessorConfig[StackID, ImageID],
 	Gallery ProcessableGallery[StackID, ImageID],
 	StackID, ImageID ID,
 ] struct {
-	processor    *Processor[Config, StackID, ImageID]
+	processor    *Processor[StackID, ImageID]
 	bus          event.Bus
 	fetchGallery func(context.Context, uuid.UUID) (Gallery, error)
+
+	// autoSave is only valid/used if autoApply is true
+	autoSave  func(context.Context, Gallery) error
+	autoApply bool
+}
+
+// PostProcessorOption is an option for [NewPostProcessor].
+type PostProcessorOption[
+	Gallery ProcessableGallery[StackID, ImageID],
+	StackID, ImageID ID,
+] func(*PostProcessor[Gallery, StackID, ImageID])
+
+// WithAutoApply returns a [PostProcessorOption] that automatically applies
+// [ProcessorResult]s to gallery aggregates. If the provided `save` function
+// is non-nil, galleries will also be saved after applying the result.
+func WithAutoApply[
+	StackID, ImageID ID,
+	Gallery ProcessableGallery[StackID, ImageID],
+](autoApply bool, save func(context.Context, Gallery) error) PostProcessorOption[Gallery, StackID, ImageID] {
+	return func(pp *PostProcessor[Gallery, StackID, ImageID]) {
+		pp.autoApply = autoApply
+		pp.autoSave = save
+	}
 }
 
 // NewPostProcessor returns a new post-processor for gallery images.
 // Read the documentation of [PostProcessor] for more information.
 func NewPostProcessor[
-	Config ProcessorConfig[StackID, ImageID],
 	Gallery ProcessableGallery[StackID, ImageID],
 	StackID, ImageID ID,
 ](
-	p *Processor[Config, StackID, ImageID],
+	p *Processor[StackID, ImageID],
 	bus event.Bus,
 	fetchGallery func(context.Context, uuid.UUID) (Gallery, error),
-) *PostProcessor[Config, Gallery, StackID, ImageID] {
-	return &PostProcessor[Config, Gallery, StackID, ImageID]{
+	opts ...PostProcessorOption[Gallery, StackID, ImageID],
+) *PostProcessor[Gallery, StackID, ImageID] {
+	pp := &PostProcessor[Gallery, StackID, ImageID]{
 		processor:    p,
 		bus:          bus,
 		fetchGallery: fetchGallery,
 	}
+	for _, opt := range opts {
+		opt(pp)
+	}
+	return pp
+}
+
+// RunProcessorOption is an option for [*PostProcessor.Run].
+type RunProcessorOption func(*runProcessorConfig)
+
+// Workers returns a [RunProcessorOption] that sets the number of workers for
+// [PostProcessor.Run]. Defaults to 1.
+func Workers(workers int) RunProcessorOption {
+	if workers < 0 {
+		workers = 0
+	}
+	return func(cfg *runProcessorConfig) {
+		cfg.workers = workers
+	}
+}
+
+// DiscardResults returns a [RunProcessorOption] that discards the
+// [ProcessorResult]s instead of returning them in the result channel.
+func DiscardResults(discard bool) RunProcessorOption {
+	return func(cfg *runProcessorConfig) {
+		cfg.discardResults = discard
+	}
+}
+
+type runProcessorConfig struct {
+	workers        int
+	discardResults bool
 }
 
 // Run runs the post-processor in the background and returns a channel of
 // results and a channel of errors. Processing stops when the provided Context
 // is canceled. If the underlying event bus fails to subscribe to
 // [ProcessorTriggerEvents], nil channels and the event bus error are returned.
-func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) Run(ctx context.Context, pipeline image.Pipeline) (
+func (pp *PostProcessor[Gallery, StackID, ImageID]) Run(ctx context.Context, pipeline image.Pipeline, opts ...RunProcessorOption) (
 	<-chan ProcessorResult[StackID, ImageID],
 	<-chan error,
 	error,
 ) {
+	cfg := runProcessorConfig{workers: 1}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	events, errs, err := pp.bus.Subscribe(ctx, ProcessorTriggerEvents...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("subscribe to %v events: %w", ProcessorTriggerEvents, err)
@@ -321,35 +342,49 @@ func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) Run(ctx context.Cont
 	processorErrors := make(chan error)
 	outErrors := streams.FanInAll(errs, processorErrors)
 
-	go pp.run(ctx, pipeline, events, results, processorErrors)
+	queue := processorQueue[Gallery, StackID, ImageID]{
+		ctx:       ctx,
+		cfg:       cfg,
+		processor: pp,
+		pipeline:  pipeline,
+		events:    events,
+		results:   results,
+		errs:      processorErrors,
+	}
+
+	go queue.run()
 
 	return results, outErrors, nil
 }
 
-func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) run(
-	ctx context.Context,
-	pipeline image.Pipeline,
-	events <-chan event.Event,
-	result chan<- ProcessorResult[StackID, ImageID],
-	errs chan<- error,
-) {
-	defer close(result)
+type processorQueue[Gallery ProcessableGallery[StackID, ImageID], StackID, ImageID ID] struct {
+	ctx       context.Context
+	cfg       runProcessorConfig
+	processor *PostProcessor[Gallery, StackID, ImageID]
+	pipeline  image.Pipeline
+	events    <-chan event.Event
+	results   chan<- ProcessorResult[StackID, ImageID]
+	errs      chan<- error
+}
 
-	fail := func(err error) {
-		select {
-		case <-ctx.Done():
-		case errs <- err:
-		}
+func (q *processorQueue[Gallery, StackID, ImageID]) run() {
+	defer close(q.results)
+
+	var wg sync.WaitGroup
+	wg.Add(q.cfg.workers)
+
+	for i := 0; i < q.cfg.workers; i++ {
+		go func() {
+			defer wg.Done()
+			q.work()
+		}()
 	}
 
-	push := func(r ProcessorResult[StackID, ImageID]) {
-		select {
-		case <-ctx.Done():
-		case result <- r:
-		}
-	}
+	wg.Wait()
+}
 
-	for evt := range events {
+func (q *processorQueue[Gallery, StackID, ImageID]) work() {
+	for evt := range q.events {
 		var (
 			result     ProcessorResult[StackID, ImageID]
 			err        error
@@ -358,44 +393,70 @@ func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) run(
 
 		switch evt.Name() {
 		case StackAdded:
-			result, err = pp.stackAdded(
-				ctx,
-				event.Cast[gallery.Stack[StackID, ImageID]](evt),
-				pipeline,
-			)
+			result, err = q.stackAdded(event.Cast[gallery.Stack[StackID, ImageID]](evt))
 		case VariantReplaced:
-			result, shouldPush, err = pp.variantReplaced(
-				ctx,
-				event.Cast[VariantReplacedData[StackID, ImageID]](evt),
-				pipeline,
-			)
+			result, shouldPush, err = q.variantReplaced(event.Cast[VariantReplacedData[StackID, ImageID]](evt))
 		}
 
 		if err != nil {
-			fail(fmt.Errorf("handle %q event: %w", evt.Name(), err))
+			q.fail(fmt.Errorf("handle %q event: %w", evt.Name(), err))
 			continue
 		}
 
-		if shouldPush {
-			push(result)
+		if q.processor.autoApply {
+			if err := q.apply(result, pick.AggregateID(evt)); err != nil {
+				q.fail(fmt.Errorf("apply result: %w", err))
+			}
+		}
+
+		if !q.cfg.discardResults && shouldPush {
+			q.push(result)
 		}
 	}
 }
 
-func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) stackAdded(
-	ctx context.Context,
-	evt event.Of[gallery.Stack[StackID, ImageID]],
-	pipeline image.Pipeline,
-) (zero ProcessorResult[StackID, ImageID], _ error) {
+func (q *processorQueue[Gallery, StackID, ImageID]) apply(result ProcessorResult[StackID, ImageID], galleryID uuid.UUID) error {
+	g, err := q.processor.fetchGallery(q.ctx, galleryID)
+	if err != nil {
+		return fmt.Errorf("fetch gallery: %w", err)
+	}
+	if err := result.Apply(g); err != nil {
+		return err
+	}
+
+	if q.processor.autoSave != nil {
+		if err := q.processor.autoSave(q.ctx, g); err != nil {
+			return fmt.Errorf("autosave gallery: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (q *processorQueue[Gallery, StackID, ImageID]) fail(err error) {
+	select {
+	case <-q.ctx.Done():
+	case q.errs <- err:
+	}
+}
+
+func (q *processorQueue[Gallery, StackID, ImageID]) push(r ProcessorResult[StackID, ImageID]) {
+	select {
+	case <-q.ctx.Done():
+	case q.results <- r:
+	}
+}
+
+func (q *processorQueue[Gallery, StackID, ImageID]) stackAdded(evt event.Of[gallery.Stack[StackID, ImageID]]) (zero ProcessorResult[StackID, ImageID], _ error) {
 	galleryID := pick.AggregateID(evt)
-	g, err := pp.fetchGallery(ctx, galleryID)
+	g, err := q.processor.fetchGallery(q.ctx, galleryID)
 	if err != nil {
 		return zero, fmt.Errorf("fetch gallery: %w", err)
 	}
 
 	data := evt.Data()
 
-	result, err := pp.processor.Process(ctx, pipeline, g, data.ID)
+	result, err := q.processor.processor.Process(q.ctx, q.pipeline, g, data.ID)
 	if err != nil {
 		return result, fmt.Errorf("run processor: %w", err)
 	}
@@ -403,13 +464,15 @@ func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) stackAdded(
 	return result, nil
 }
 
-func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) variantReplaced(
-	ctx context.Context,
-	evt event.Of[VariantReplacedData[StackID, ImageID]],
-	pipeline image.Pipeline,
-) (zero ProcessorResult[StackID, ImageID], _ bool, _ error) {
+func (q *processorQueue[
+	Gallery,
+	StackID, ImageID,
+]) variantReplaced(evt event.Of[VariantReplacedData[StackID, ImageID]]) (
+	zero ProcessorResult[StackID, ImageID],
+	_ bool, _ error,
+) {
 	galleryID := pick.AggregateID(evt)
-	g, err := pp.fetchGallery(ctx, galleryID)
+	g, err := q.processor.fetchGallery(q.ctx, galleryID)
 	if err != nil {
 		return zero, false, fmt.Errorf("fetch gallery: %w", err)
 	}
@@ -420,7 +483,7 @@ func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) variantReplaced(
 		return zero, false, nil
 	}
 
-	result, err := pp.processor.Process(ctx, pipeline, g, data.StackID)
+	result, err := q.processor.processor.Process(q.ctx, q.pipeline, g, data.StackID)
 	if err != nil {
 		return result, false, fmt.Errorf("run processor: %w", err)
 	}
