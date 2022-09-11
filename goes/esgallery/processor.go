@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/modernice/goes/aggregate"
 	"github.com/modernice/goes/event"
 	"github.com/modernice/goes/helper/pick"
+	"github.com/modernice/goes/helper/streams"
 	"github.com/modernice/media-entity/gallery"
 	"github.com/modernice/media-tools/image"
 )
@@ -19,6 +21,9 @@ import (
 // ProcessorConfig is the type constraint for a [Config] that can be passed to a [*Processor].
 type ProcessorConfig[StackID, ImageID ID] interface {
 	Config[StackID, ImageID]
+
+	// Encoding returns the configured [Encoding].
+	Encoding() Encoding
 
 	// NewVariantID returns a new ID for a new variant of a processed [gallery.Stack].
 	NewVariantID() ImageID
@@ -29,9 +34,7 @@ type ProcessorConfig[StackID, ImageID ID] interface {
 type Processor[Cfg ProcessorConfig[StackID, ImageID], StackID, ImageID ID] struct {
 	config   Cfg
 	uploader *Uploader[StackID, ImageID]
-	bus      event.Bus
 	storage  Storage
-	encoder  Encoding
 }
 
 // ProcessorResult is the result post-processing a [gallery.Stack].
@@ -84,17 +87,24 @@ type ResultTarget[StackID, ImageID ID] interface {
 //
 //	cfg := Configure(uuid.New, func() string { return "<some-unique-string>" })
 type Config[StackID, ImageID ID] struct {
+	encoding     Encoding
 	newStackID   func() StackID
 	newVariantID func() ImageID
 }
 
 // Configure configures the factory functions for [gallery.Stack] and
 // [gallery.Image] ids.
-func Configure[StackID, ImageID ID](newStackID func() StackID, newVariantID func() ImageID) Config[StackID, ImageID] {
+func Configure[StackID, ImageID ID](enc Encoding, newStackID func() StackID, newVariantID func() ImageID) Config[StackID, ImageID] {
 	return Config[StackID, ImageID]{
+		encoding:     enc,
 		newStackID:   newStackID,
 		newVariantID: newVariantID,
 	}
+}
+
+// Encoding returns the configured [Encoding].
+func (cfg Config[StackID, ImageID]) Encoding() Encoding {
+	return cfg.encoding
 }
 
 // NewStackID returns a new ID for a [gallery.Stack].
@@ -140,17 +150,13 @@ func (result ProcessorResult[StackID, ImageID]) Apply(g ResultTarget[StackID, Im
 // NewProcessor returns a post-processor for gallery images.
 func NewProcessor[Cfg ProcessorConfig[StackID, ImageID], StackID, ImageID ID](
 	cfg Cfg,
-	enc Encoding,
 	uploader *Uploader[StackID, ImageID],
 	storage Storage,
-	bus event.Bus,
 ) *Processor[Cfg, StackID, ImageID] {
 	return &Processor[Cfg, StackID, ImageID]{
 		config:   cfg,
-		encoder:  enc,
 		uploader: uploader,
 		storage:  storage,
-		bus:      bus,
 	}
 }
 
@@ -219,7 +225,7 @@ func (p *Processor[Config, StackID, ImageID]) Process(
 
 		// Encode the variant into the original image format that was detected earlier.
 		var buf bytes.Buffer
-		if err := p.encoder.Encode(&buf, contentType, pimg.Image); err != nil {
+		if err := p.config.Encoding().Encode(&buf, contentType, pimg.Image); err != nil {
 			return zeroResult[StackID, ImageID](), fmt.Errorf("encode processed image: %w", err)
 		}
 
@@ -247,6 +253,153 @@ func (p *Processor[Config, StackID, ImageID]) Process(
 		StackID: stackID,
 		Images:  processed,
 	}, nil
+}
+
+type PostProcessor[
+	Config ProcessorConfig[StackID, ImageID],
+	Gallery ProcessableGallery[StackID, ImageID],
+	StackID, ImageID ID,
+] struct {
+	processor    *Processor[Config, StackID, ImageID]
+	bus          event.Bus
+	fetchGallery func(context.Context, uuid.UUID) (Gallery, error)
+}
+
+func NewPostProcessor[
+	Config ProcessorConfig[StackID, ImageID],
+	Gallery ProcessableGallery[StackID, ImageID],
+	StackID, ImageID ID,
+](
+	p *Processor[Config, StackID, ImageID],
+	bus event.Bus,
+	fetchGallery func(context.Context, uuid.UUID) (Gallery, error),
+) *PostProcessor[Config, Gallery, StackID, ImageID] {
+	return &PostProcessor[Config, Gallery, StackID, ImageID]{
+		processor:    p,
+		bus:          bus,
+		fetchGallery: fetchGallery,
+	}
+}
+
+func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) Run(ctx context.Context, pipeline image.Pipeline) (
+	<-chan ProcessorResult[StackID, ImageID],
+	<-chan error,
+	error,
+) {
+	events, errs, err := pp.bus.Subscribe(ctx, ProcessorTriggerEvents...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("subscribe to %v events: %w", ProcessorTriggerEvents, err)
+	}
+
+	results := make(chan ProcessorResult[StackID, ImageID])
+	processorErrors := make(chan error)
+	outErrors := streams.FanInAll(errs, processorErrors)
+
+	go pp.run(ctx, pipeline, events, results, processorErrors)
+
+	return results, outErrors, nil
+}
+
+func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) run(
+	ctx context.Context,
+	pipeline image.Pipeline,
+	events <-chan event.Event,
+	result chan<- ProcessorResult[StackID, ImageID],
+	errs chan<- error,
+) {
+	defer close(result)
+
+	fail := func(err error) {
+		select {
+		case <-ctx.Done():
+		case errs <- err:
+		}
+	}
+
+	push := func(r ProcessorResult[StackID, ImageID]) {
+		select {
+		case <-ctx.Done():
+		case result <- r:
+		}
+	}
+
+	for evt := range events {
+		var (
+			result     ProcessorResult[StackID, ImageID]
+			err        error
+			shouldPush = true
+		)
+
+		switch evt.Name() {
+		case StackAdded:
+			result, err = pp.stackAdded(
+				ctx,
+				event.Cast[gallery.Stack[StackID, ImageID]](evt),
+				pipeline,
+			)
+		case VariantReplaced:
+			result, shouldPush, err = pp.variantReplaced(
+				ctx,
+				event.Cast[VariantReplacedData[StackID, ImageID]](evt),
+				pipeline,
+			)
+		}
+
+		if err != nil {
+			fail(fmt.Errorf("handle %q event: %w", evt.Name(), err))
+			continue
+		}
+
+		if shouldPush {
+			push(result)
+		}
+	}
+}
+
+func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) stackAdded(
+	ctx context.Context,
+	evt event.Of[gallery.Stack[StackID, ImageID]],
+	pipeline image.Pipeline,
+) (zero ProcessorResult[StackID, ImageID], _ error) {
+	galleryID := pick.AggregateID(evt)
+	g, err := pp.fetchGallery(ctx, galleryID)
+	if err != nil {
+		return zero, fmt.Errorf("fetch gallery: %w", err)
+	}
+
+	data := evt.Data()
+
+	result, err := pp.processor.Process(ctx, pipeline, g, data.ID)
+	if err != nil {
+		return result, fmt.Errorf("run processor: %w", err)
+	}
+
+	return result, nil
+}
+
+func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) variantReplaced(
+	ctx context.Context,
+	evt event.Of[VariantReplacedData[StackID, ImageID]],
+	pipeline image.Pipeline,
+) (zero ProcessorResult[StackID, ImageID], _ bool, _ error) {
+	galleryID := pick.AggregateID(evt)
+	g, err := pp.fetchGallery(ctx, galleryID)
+	if err != nil {
+		return zero, false, fmt.Errorf("fetch gallery: %w", err)
+	}
+
+	data := evt.Data()
+
+	if !data.Variant.Original {
+		return zero, false, nil
+	}
+
+	result, err := pp.processor.Process(ctx, pipeline, g, data.StackID)
+	if err != nil {
+		return result, false, fmt.Errorf("run processor: %w", err)
+	}
+
+	return result, true, nil
 }
 
 func zeroResult[StackID, ImageID ID]() (zero ProcessorResult[StackID, ImageID]) {

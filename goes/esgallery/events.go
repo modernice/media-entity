@@ -17,6 +17,9 @@ const (
 	Sorted          = "goes.gallery.sorted"
 )
 
+// ProcessorTriggerEvents are the events that can trigger a [*Processor].
+var ProcessorTriggerEvents = []string{StackAdded, VariantReplaced}
+
 type VariantAddedData[StackID, ImageID ID] struct {
 	StackID StackID
 	Variant gallery.Image[ImageID]
