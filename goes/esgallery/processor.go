@@ -255,6 +255,26 @@ func (p *Processor[Config, StackID, ImageID]) Process(
 	}, nil
 }
 
+// PostProcessor is a post-processor for gallery images. Whenever a new
+// [gallery.Stack] is added to a gallery, or whenever the original image of a
+// [gallery.Stack] is replaced, the post-processor is triggered to post-process
+// that [gallery.Stack].
+//
+// # Example
+//
+// This example makes use of [repository.Typed], which returns a
+// [aggregate.TypedRepository] that provides a Fetch method that can be directly
+// passed to [NewPostProcessor].
+//
+//	type MyGallery struct { ... }
+//	func NewGallery(id uuid.UUID) *MyGallery { return &MyGallery{ ... } }
+//
+//	var p *Processor
+//	var bus event.Bus
+//	var repo aggregate.Repository
+//
+//	galleries := repository.Typed(repo, NewGallery)
+//	pp := NewPostProcessor(p, bus, galleries.Fetch)
 type PostProcessor[
 	Config ProcessorConfig[StackID, ImageID],
 	Gallery ProcessableGallery[StackID, ImageID],
@@ -265,6 +285,8 @@ type PostProcessor[
 	fetchGallery func(context.Context, uuid.UUID) (Gallery, error)
 }
 
+// NewPostProcessor returns a new post-processor for gallery images.
+// Read the documentation of [PostProcessor] for more information.
 func NewPostProcessor[
 	Config ProcessorConfig[StackID, ImageID],
 	Gallery ProcessableGallery[StackID, ImageID],
@@ -281,6 +303,10 @@ func NewPostProcessor[
 	}
 }
 
+// Run runs the post-processor in the background and returns a channel of
+// results and a channel of errors. Processing stops when the provided Context
+// is canceled. If the underlying event bus fails to subscribe to
+// [ProcessorTriggerEvents], nil channels and the event bus error are returned.
 func (pp *PostProcessor[Config, Gallery, StackID, ImageID]) Run(ctx context.Context, pipeline image.Pipeline) (
 	<-chan ProcessorResult[StackID, ImageID],
 	<-chan error,
