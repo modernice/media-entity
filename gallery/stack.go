@@ -5,6 +5,7 @@ import (
 
 	"github.com/modernice/media-entity/image"
 	"github.com/modernice/media-entity/internal"
+	"github.com/modernice/media-entity/internal/slicex"
 	imgtools "github.com/modernice/media-tools/image"
 )
 
@@ -32,7 +33,6 @@ type Image[ID comparable] struct {
 
 	ID       ID   `json:"id"`
 	Original bool `json:"original"`
-	Tags     Tags `json:"tags"`
 }
 
 // Clone returns a deep-copy of the image.
@@ -73,6 +73,26 @@ func (s Stack[ID, ImageID]) Original() Image[ImageID] {
 		}
 	}
 	return zeroImage[ImageID]()
+}
+
+// ContainsOriginal returns whether the Stack contains an [Image] that has its
+// Original field set to true.
+func (s Stack[ID, ImageID]) ContainsOriginal() bool {
+	for _, img := range s.Variants {
+		if img.Original {
+			return true
+		}
+	}
+	return false
+}
+
+// Clear returns a copy of the Stack will all variants removed except for the original.
+func (s Stack[ID, ImageID]) Clear() Stack[ID, ImageID] {
+	s = s.Clone()
+	s.Variants = slicex.Filter(s.Variants, func(img Image[ImageID]) bool {
+		return img.Original
+	})
+	return s
 }
 
 // Image returns the [Image] with the given id, or false if the stack does not

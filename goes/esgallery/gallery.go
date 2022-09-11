@@ -70,6 +70,7 @@ func New[StackID, ImageID ID, T Target](target T) *Gallery[StackID, ImageID, T] 
 
 	event.ApplyWith(target, g.newStack, StackAdded)
 	event.ApplyWith(target, g.removeStack, StackRemoved)
+	event.ApplyWith(target, g.clearStack, StackCleared)
 	event.ApplyWith(target, g.addVariant, VariantAdded)
 	event.ApplyWith(target, g.removeVariant, VariantRemoved)
 	event.ApplyWith(target, g.replaceVariant, VariantReplaced)
@@ -164,6 +165,37 @@ func (g *Gallery[StackID, ImageID, Target]) RemoveStack(id StackID) (gallery.Sta
 
 func (g *Gallery[StackID, ImageID, Target]) removeStack(evt event.Of[StackID]) {
 	g.Base.RemoveStack(evt.Data())
+}
+
+// ClearStacks removes all variants from a [gallery.Stack] except the original.
+func (g *Gallery[StackID, ImageID, T]) ClearStack(id StackID) (gallery.Stack[StackID, ImageID], error) {
+	stack, ok := g.Stack(id)
+	if !ok {
+		return gallery.Stack[StackID, ImageID]{}, gallery.ErrStackNotFound
+	}
+
+	if len(stack.Variants) == 0 {
+		return stack, nil
+	}
+
+	if len(stack.Variants) < 2 && stack.ContainsOriginal() {
+		return stack, nil
+	}
+
+	aggregate.Next(g.target, StackCleared, id)
+
+	stack, _ = g.Stack(id)
+
+	return stack, nil
+}
+
+func (g *Gallery[StackID, ImageID, T]) clearStack(evt event.Of[StackID]) {
+	for i, stack := range g.Base.Stacks {
+		if stack.ID == evt.Data() {
+			g.Base.Stacks[i] = stack.Clear()
+			return
+		}
+	}
 }
 
 // NewVariant is the event-sourced variant of [*gallery.Base.NewVariant].

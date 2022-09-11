@@ -7,14 +7,15 @@ import (
 
 // Gallery events
 const (
-	StackAdded      = "goes.gallery.stack_added"
-	StackRemoved    = "goes.gallery.stack_removed"
-	VariantAdded    = "goes.gallery.variant_added"
-	VariantRemoved  = "goes.gallery.variant_removed"
-	VariantReplaced = "goes.gallery.variant_replaced"
-	StackTagged     = "goes.gallery.stack_tagged"
-	StackUntagged   = "goes.gallery.stack_untagged"
-	Sorted          = "goes.gallery.sorted"
+	StackAdded      = "esgallery.stack_added"
+	StackRemoved    = "esgallery.stack_removed"
+	StackCleared    = "esgallery.stack_cleared"
+	VariantAdded    = "esgallery.variant_added"
+	VariantRemoved  = "esgallery.variant_removed"
+	VariantReplaced = "esgallery.variant_replaced"
+	StackTagged     = "esgallery.stack_tagged"
+	StackUntagged   = "esgallery.stack_untagged"
+	Sorted          = "esgallery.sorted"
 )
 
 // ProcessorTriggerEvents are the events that can trigger a [*Processor].
@@ -49,6 +50,7 @@ type StackUntaggedData[StackID ID] struct {
 func RegisterEvents[StackID, ImageID ID](r codec.Registerer) {
 	codec.Register[gallery.Stack[StackID, ImageID]](r, StackAdded)
 	codec.Register[StackID](r, StackRemoved)
+	codec.Register[StackID](r, StackCleared)
 	codec.Register[VariantAddedData[StackID, ImageID]](r, VariantAdded)
 	codec.Register[VariantRemovedData[StackID, ImageID]](r, VariantRemoved)
 	codec.Register[VariantReplacedData[StackID, ImageID]](r, VariantReplaced)

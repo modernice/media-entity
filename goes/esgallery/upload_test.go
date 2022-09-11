@@ -30,7 +30,7 @@ func TestUploader_Upload(t *testing.T) {
 
 	variantID := uuid.New()
 
-	uploaded, err := up.Upload(ctx, g, stack.ID, variantID, img)
+	uploaded, err := up.UploadVariant(ctx, g, stack.ID, variantID, img)
 	if err != nil {
 		t.Fatalf("upload failed: %v", err)
 	}

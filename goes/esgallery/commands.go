@@ -16,6 +16,7 @@ import (
 const (
 	AddStackCmd       = "goes.gallery.add_stack"
 	RemoveStackCmd    = "goes.gallery.remove_stack"
+	ClearStackCmd     = "goes.gallery.clear_stack"
 	AddVariantCmd     = "goes.gallery.add_variant"
 	RemoveVariantCmd  = "goes.gallery.remove_variant"
 	ReplaceVariantCmd = "goes.gallery.replace_variant"
@@ -34,7 +35,7 @@ func NewCommands[StackID, ImageID ID](aggregateName string) *Commands[StackID, I
 	return &Commands[StackID, ImageID]{aggregateName}
 }
 
-// AddStack returns the command to add a new [Stack] to a [*Gallery].
+// AddStack returns the command to add a new [gallery.Stack] to a [*Gallery].
 func (c *Commands[StackID, ImageID]) AddStack(galleryID uuid.UUID, stackID StackID, img gallery.Image[ImageID]) command.Cmd[addStack[StackID, ImageID]] {
 	return command.New(AddStackCmd, addStack[StackID, ImageID]{stackID, img}, command.Aggregate(c.aggregateName, galleryID))
 }
@@ -44,7 +45,7 @@ type addStack[StackID, ImageID ID] struct {
 	Image   gallery.Image[ImageID]
 }
 
-// RemoveStack returns the command to remove a [Stack] from a [*Gallery].
+// RemoveStack returns the command to remove a [gallery.Stack] from a [*Gallery].
 func (c *Commands[StackID, ImageID]) RemoveStack(galleryID uuid.UUID, stackID StackID) command.Cmd[removeStack[StackID]] {
 	return command.New(RemoveStackCmd, removeStack[StackID]{stackID}, command.Aggregate(c.aggregateName, galleryID))
 }
@@ -53,9 +54,14 @@ type removeStack[StackID ID] struct {
 	StackID StackID
 }
 
-// AddVariant returns the command to add a new [Variant] to a [Stack] in a [*Gallery].
+// AddVariant returns the command to add a new [Variant] to a [gallery.Stack] in a [*Gallery].
 func (c *Commands[StackID, ImageID]) AddVariant(galleryID uuid.UUID, stackID StackID, variantID ImageID, img image.Image) command.Cmd[addVariant[StackID, ImageID]] {
 	return command.New(AddVariantCmd, addVariant[StackID, ImageID]{stackID, variantID, img}, command.Aggregate(c.aggregateName, galleryID))
+}
+
+// ClearStack returns the command to clear the variants of a [gallery.Stack].
+func (c *Commands[StackID, ImageID]) ClearStack(galleryID uuid.UUID, stackID StackID) command.Cmd[StackID] {
+	return command.New(ClearStackCmd, stackID, command.Aggregate(c.aggregateName, galleryID))
 }
 
 type addVariant[StackID, ImageID ID] struct {
@@ -64,7 +70,7 @@ type addVariant[StackID, ImageID ID] struct {
 	Image     image.Image
 }
 
-// RemoveVariant returns the command to remove a [Variant] from a [Stack] in a [*Gallery].
+// RemoveVariant returns the command to remove a [Variant] from a [gallery.Stack] in a [*Gallery].
 func (c *Commands[StackID, ImageID]) RemoveVariant(galleryID uuid.UUID, stackID StackID, variantID ImageID) command.Cmd[removeVariant[StackID, ImageID]] {
 	return command.New(RemoveVariantCmd, removeVariant[StackID, ImageID]{stackID, variantID}, command.Aggregate(c.aggregateName, galleryID))
 }
@@ -74,7 +80,7 @@ type removeVariant[StackID, ImageID ID] struct {
 	VariantID ImageID
 }
 
-// ReplaceVariant returns the command to replace a [Variant] in a [Stack] in a [*Gallery].
+// ReplaceVariant returns the command to replace a [Variant] in a [gallery.Stack] in a [*Gallery].
 func (c *Commands[StackID, ImageID]) ReplaceVariant(galleryID uuid.UUID, stackID StackID, variant gallery.Image[ImageID]) command.Cmd[replaceVariant[StackID, ImageID]] {
 	return command.New(ReplaceVariantCmd, replaceVariant[StackID, ImageID]{stackID, variant}, command.Aggregate(c.aggregateName, galleryID))
 }
@@ -84,7 +90,7 @@ type replaceVariant[StackID, ImageID ID] struct {
 	Variant gallery.Image[ImageID]
 }
 
-// TagStack returns the command to add tags to a [Stack] in a [*Gallery].
+// TagStack returns the command to add tags to a [gallery.Stack] in a [*Gallery].
 func (c *Commands[StackID, ImageID]) TagStack(galleryID uuid.UUID, stackID StackID, tags ...string) command.Cmd[tagStack[StackID]] {
 	return command.New(TagStackCmd, tagStack[StackID]{stackID, tags}, command.Aggregate(c.aggregateName, galleryID))
 }
@@ -94,7 +100,7 @@ type tagStack[StackID ID] struct {
 	Tags    gallery.Tags
 }
 
-// UntagStack returns the command to remove tags from a [Stack] in a [*Gallery].
+// UntagStack returns the command to remove tags from a [gallery.Stack] in a [*Gallery].
 func (c *Commands[StackID, ImageID]) UntagStack(galleryID uuid.UUID, stackID StackID, tags ...string) command.Cmd[untagStack[StackID]] {
 	return command.New(UntagStackCmd, untagStack[StackID]{stackID, tags}, command.Aggregate(c.aggregateName, galleryID))
 }
@@ -104,7 +110,7 @@ type untagStack[StackID ID] struct {
 	Tags    gallery.Tags
 }
 
-// Sort returns the command to sort the [Stack]s in a [*Gallery].
+// Sort returns the command to sort the [gallery.Stack]s in a [*Gallery].
 func (c *Commands[StackID, _]) Sort(galleryID uuid.UUID, sorting []StackID) command.Cmd[[]StackID] {
 	return command.New(SortCmd, sorting, command.Aggregate(c.aggregateName, galleryID))
 }
@@ -130,6 +136,7 @@ func (c *Commands[StackID, ImageID]) Handle(
 func RegisterCommands[StackID, ImageID ID](r codec.Registerer) {
 	codec.Register[addStack[StackID, ImageID]](r, AddStackCmd)
 	codec.Register[removeStack[StackID]](r, RemoveStackCmd)
+	codec.Register[StackID](r, ClearStackCmd)
 	codec.Register[addVariant[StackID, ImageID]](r, AddVariantCmd)
 	codec.Register[removeVariant[StackID, ImageID]](r, RemoveVariantCmd)
 	codec.Register[replaceVariant[StackID, ImageID]](r, ReplaceVariantCmd)

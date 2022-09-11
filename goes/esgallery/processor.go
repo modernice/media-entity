@@ -53,12 +53,18 @@ type ProcessedImage[ImageID ID] struct {
 }
 
 // ProcessableGallery is the type constraint for gallery aggregates that can be
-// processed by a [*Processor].
+// handled by [*Processor]s and [*Uploader]s.
 type ProcessableGallery[StackID, ImageID ID] interface {
 	pick.AggregateProvider
 
 	// Stack returns the given [gallery.Stack].
 	Stack(StackID) (gallery.Stack[StackID, ImageID], bool)
+
+	// NewStack adds a new [gallery.Stack] to the gallery.
+	NewStack(StackID, gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error)
+
+	// ClearStacks removes all variants from a [gallery.Stack] except the original.
+	ClearStack(StackID) (gallery.Stack[StackID, ImageID], error)
 
 	// ReplaceVariant replaces a variant of a [gallery.Stack].
 	ReplaceVariant(StackID, gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error)
@@ -67,24 +73,50 @@ type ProcessableGallery[StackID, ImageID ID] interface {
 	AddVariant(StackID, gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error)
 }
 
+// ApplyResultOption is an option for [*ProcessorResult.Apply].
+type ApplyResultOption func(*applyResultConfig)
+
+// ClearStack returns an [ApplyResultOption] that clears the variants of the
+// [gallery.Stack] before adding the processed variants to the Stack.
+func ClearStack(clear bool) ApplyResultOption {
+	return func(cfg *applyResultConfig) {
+		cfg.clearStack = clear
+	}
+}
+
+type applyResultConfig struct {
+	clearStack bool
+}
+
 // ApplyProcessorResult applies a [ProcessorResult] to a Gallery by raising the appropriate events.
-func ApplyProcessorResult[Gallery ProcessableGallery[StackID, ImageID], StackID, ImageID ID](result ProcessorResult[StackID, ImageID], g Gallery) error {
-	stack, ok := g.Stack(result.StackID)
-	if !ok {
-		return fmt.Errorf("stack %q: %w", result.StackID, gallery.ErrStackNotFound)
+func (r ProcessorResult[StackID, ImageID]) Apply(g ProcessableGallery[StackID, ImageID], opts ...ApplyResultOption) error {
+	var cfg applyResultConfig
+	for _, opt := range opts {
+		opt(&cfg)
 	}
 
-	for _, processed := range result.Images {
+	stack, ok := g.Stack(r.StackID)
+	if !ok {
+		return fmt.Errorf("stack %q: %w", r.StackID, gallery.ErrStackNotFound)
+	}
+
+	if cfg.clearStack {
+		if _, err := g.ClearStack(r.StackID); err != nil {
+			return fmt.Errorf("clear stack: %w", err)
+		}
+	}
+
+	for _, processed := range r.Images {
 		// Variant already exists, so we replace it.
 		if _, ok := stack.Variant(processed.Image.ID); ok {
-			if _, err := g.ReplaceVariant(result.StackID, processed.Image); err != nil {
+			if _, err := g.ReplaceVariant(r.StackID, processed.Image); err != nil {
 				return fmt.Errorf("replace variant %q: %w", processed.Image.ID, err)
 			}
 			continue
 		}
 
 		// Variant does not exist, so we add it.
-		if _, err := g.AddVariant(result.StackID, processed.Image); err != nil {
+		if _, err := g.AddVariant(r.StackID, processed.Image); err != nil {
 			return fmt.Errorf("add variant: %w", err)
 		}
 	}
@@ -92,10 +124,10 @@ func ApplyProcessorResult[Gallery ProcessableGallery[StackID, ImageID], StackID,
 	return nil
 }
 
-// Apply is a shortcut for ApplyProcessorResult(result, g).
-func (result ProcessorResult[StackID, ImageID]) Apply(g ProcessableGallery[StackID, ImageID]) error {
-	return ApplyProcessorResult(result, g)
-}
+// // Apply calls ApplyProcessorResult(result, g, opts...).
+// func (result ProcessorResult[StackID, ImageID]) Apply(g ProcessableGallery[StackID, ImageID], opts ...ApplyResultOption) error {
+// 	return ApplyProcessorResult(result, g, opts...)
+// }
 
 // NewProcessor returns a post-processor for gallery images.
 func NewProcessor[StackID, ImageID ID](
@@ -119,7 +151,7 @@ func NewProcessor[StackID, ImageID ID](
 // [gallery.Stack].
 //
 // The returned [ProcessorResult] can be applied to a gallery aggregate by
-// calling [ApplyProcessorResult]. Appropriate events will be raised to replace
+// calling [*ProcessorResult.Apply]. Appropriate events will be raised to replace
 // the original variant of the [gallery.Stack], and/or to add new variants.
 //
 //	var gallery *Gallery
@@ -182,7 +214,7 @@ func (p *Processor[StackID, ImageID]) Process(
 		}
 
 		// Upload the variant to storage.
-		uploaded, err := p.uploader.Upload(ctx, g, stackID, variantID, &buf)
+		uploaded, err := p.uploader.UploadVariant(ctx, g, stackID, variantID, &buf)
 		if err != nil {
 			return zeroResult[StackID, ImageID](), fmt.Errorf("upload processed image: %w", err)
 		}

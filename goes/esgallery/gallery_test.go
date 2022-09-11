@@ -63,6 +63,28 @@ func TestGallery_RemoveStack(t *testing.T) {
 	test.Change(t, g, esgallery.StackRemoved, test.EventData(stack.ID))
 }
 
+func TestGallery_ClearStack(t *testing.T) {
+	g := NewTestGallery(uuid.New())
+
+	stack, _ := g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
+	g.NewVariant(stack.ID, uuid.New(), galleryx.NewImage(uuid.New()).Image)
+	g.NewVariant(stack.ID, uuid.New(), galleryx.NewImage(uuid.New()).Image)
+	g.NewVariant(stack.ID, uuid.New(), galleryx.NewImage(uuid.New()).Image)
+
+	stack, err := g.ClearStack(stack.ID)
+	if err != nil {
+		t.Fatalf("clear stack: %v", err)
+	}
+
+	if len(stack.Variants) != 1 {
+		t.Fatalf("stack should only have 1 variant; has %d", len(stack.Variants))
+	}
+
+	testcmp.Equal(t, "cleared stack should contain the original image", stack.Original(), stack.Variants[0])
+
+	test.Change(t, g, esgallery.StackCleared, test.EventData(stack.ID))
+}
+
 func TestGallery_NewVariant(t *testing.T) {
 	g := NewTestGallery(uuid.New())
 

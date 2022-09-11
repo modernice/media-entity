@@ -41,7 +41,7 @@ func TestProcessor_Process(t *testing.T) {
 	originalVariant := galleryx.NewImage(uuid.New())
 	stack, _ := g.NewStack(uuid.New(), originalVariant)
 
-	_, err := uploader.Upload(ctx, g, stack.ID, originalVariant.ID, r)
+	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
 	if err != nil {
 		t.Fatalf("upload original image: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestProcessor_Run_stackAdded(t *testing.T) {
 	originalVariant := galleryx.NewImage(uuid.New())
 	stack, _ := g.NewStack(uuid.New(), originalVariant)
 
-	_, err := uploader.Upload(ctx, g, stack.ID, originalVariant.ID, r)
+	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
 	if err != nil {
 		t.Fatalf("upload original image: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestProcessor_Run_variantReplaced_original(t *testing.T) {
 	originalVariant := galleryx.NewImage(uuid.New())
 	stack, _ := g.NewStack(uuid.New(), originalVariant)
 
-	_, err := uploader.Upload(ctx, g, stack.ID, originalVariant.ID, r)
+	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
 	if err != nil {
 		t.Fatalf("upload original image: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestProcessor_Run_variantReplaced_variant(t *testing.T) {
 	originalVariant := galleryx.NewImage(uuid.New())
 	stack, _ := g.NewStack(uuid.New(), originalVariant)
 
-	_, err := uploader.Upload(ctx, g, stack.ID, originalVariant.ID, r)
+	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
 	if err != nil {
 		t.Fatalf("upload original image: %v", err)
 	}
@@ -265,7 +265,7 @@ func TestProcessor_Run_WithAutoApply(t *testing.T) {
 	originalVariant := galleryx.NewImage(uuid.New())
 	stack, _ := g.NewStack(uuid.New(), originalVariant)
 
-	_, err := uploader.Upload(ctx, g, stack.ID, originalVariant.ID, r)
+	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
 	if err != nil {
 		t.Fatalf("upload original image: %v", err)
 	}
@@ -311,7 +311,7 @@ func testProcessorResult(
 		t.Fatalf("expected 4 images in result (including original); got %d", len(result.Images))
 	}
 
-	if err := esgallery.ApplyProcessorResult(result, g); err != nil {
+	if err := result.Apply(g); err != nil {
 		t.Fatalf("apply result: %v", err)
 	}
 
