@@ -13,6 +13,7 @@ import (
 	"github.com/modernice/media-entity/gallery"
 	"github.com/modernice/media-entity/goes/esgallery"
 	"github.com/modernice/media-entity/internal/galleryx"
+	"github.com/modernice/media-entity/internal/testcmp"
 	"github.com/modernice/media-entity/internal/testx"
 	imgtools "github.com/modernice/media-tools/image"
 	"golang.org/x/exp/maps"
@@ -91,6 +92,8 @@ func TestProcessor_Run_stackAdded(t *testing.T) {
 	}
 	go testx.PanicOn(errs)
 
+	trigger := g.AggregateChanges()[len(g.AggregateChanges())-1]
+
 	// Trigger post-processor
 	if err := galleries.Save(ctx, g); err != nil {
 		t.Fatalf("save gallery: %v", err)
@@ -104,6 +107,8 @@ func TestProcessor_Run_stackAdded(t *testing.T) {
 	}
 
 	testProcessorResult(t, result, &storage, g, stack)
+
+	testcmp.Equal(t, "result has invalid trigger", trigger, result.Trigger)
 }
 
 func TestProcessor_Run_variantReplaced_original(t *testing.T) {

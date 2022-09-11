@@ -34,7 +34,7 @@ type ProcessorResult[StackID, ImageID ID] struct {
 
 	Gallery aggregate.Ref
 
-	// Trigger is the event that triggered the processing. If the [Processor]
+	// Trigger is the event that triggered the processing. If the [*Processor]
 	// was called manually, Trigger is nil.
 	Trigger event.Event
 
@@ -391,6 +391,8 @@ func (q *processorQueue[Gallery, StackID, ImageID]) work() {
 			q.fail(fmt.Errorf("handle %q event: %w", evt.Name(), err))
 			continue
 		}
+
+		result.Trigger = evt
 
 		if q.processor.autoApply {
 			if err := q.apply(result, pick.AggregateID(evt)); err != nil {
