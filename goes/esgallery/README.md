@@ -17,22 +17,22 @@ more details.
 package myapp
 
 import (
-	"github.com/google/uuid"
-	"github.com/modernice/goes/aggregate"
-	"github.com/modernice/media-entity/goes/esgallery"
+  "github.com/google/uuid"
+  "github.com/modernice/goes/aggregate"
+  "github.com/modernice/media-entity/goes/esgallery"
 )
 
 const GalleryAggregate = "myapp.gallery"
 
 type Gallery struct {
-	*aggregate.Base
-	*esgallery.Gallery[uuid.UUID, uuid.UUID, *Gallery]
+  *aggregate.Base
+  *esgallery.Gallery[uuid.UUID, uuid.UUID, *Gallery]
 }
 
 func NewGallery(id uuid.UUID) *Gallery {
-	g:= &Gallery{Base: aggregate.New(GalleryAggregate, id)}
-	g.Gallery = esgallery.New[uuid.UUID, uuid.UUID](g)
-	return g
+  g:= &Gallery{Base: aggregate.New(GalleryAggregate, id)}
+  g.Gallery = esgallery.New[uuid.UUID, uuid.UUID](g)
+  return g
 }
 ```
 
@@ -42,11 +42,11 @@ func NewGallery(id uuid.UUID) *Gallery {
 package myapp
 
 import (
-	"github.com/google/uuid"
-	"github.com/modernice/goes/aggregate"
-	"github.com/modernice/goes/aggregate/repository"
-	"github.com/modernice/goes/event"
-	"github.com/modernice/media-entity/goes/esgallery"
+  "github.com/google/uuid"
+  "github.com/modernice/goes/aggregate"
+  "github.com/modernice/goes/aggregate/repository"
+  "github.com/modernice/goes/event"
+  "github.com/modernice/media-entity/goes/esgallery"
 )
 
 // Create an alias to avoid having to type *esgallery.Uploader[uuid.UUID, uuid.UUID] everywhere.
@@ -55,11 +55,11 @@ type Uploader = esgallery.Uploader[uuid.UUID, uuid.UUID]
 // NewUploader returns an uploader for gallery images. The two type parameters
 // specify the ID types for the stacks and variants within the gallery aggregate.
 func NewUploader() *Uploader {
-	// Create storage for gallery images.
-	var storage esgallery.MemoryStorage
+  // Create storage for gallery images.
+  var storage esgallery.MemoryStorage
 
-	// Create a new Uploader using the storage.
-	return esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
+  // Create a new Uploader using the storage.
+  return esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
 }
 ```
 
@@ -69,28 +69,28 @@ func NewUploader() *Uploader {
 package myapp
 
 import (
-	"github.com/google/uuid"
-	"github.com/modernice/goes/aggregate"
-	"github.com/modernice/goes/aggregate/repository"
-	"github.com/modernice/goes/event"
-	"github.com/modernice/media-entity/goes/esgallery"
+  "github.com/google/uuid"
+  "github.com/modernice/goes/aggregate"
+  "github.com/modernice/goes/aggregate/repository"
+  "github.com/modernice/goes/event"
+  "github.com/modernice/media-entity/goes/esgallery"
 )
 
 // Create an alias to avoid having to type *esgallery.PostProcessor[*Gallery, uuid.UUID, uuid.UUID] everywhere.
 type PostProcessor = esgallery.PostProcessor[*Gallery, uuid.UUID, uuid.UUID]
 
 func Setup(uploader *Uploader, bus event.Bus, repo aggregate.Repository) *PostProcessor {
-	// Create storage for gallery images.
-	var storage esgallery.MemoryStorage
+  // Create storage for gallery images.
+  var storage esgallery.MemoryStorage
 
-	// Create an image processor for galleries.
-	p := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
+  // Create an image processor for galleries.
+  p := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
 
-	// Create the PostProcessor from the Processor.
-	galleries := repository.Typed(repo, NewGallery)
-	pp := esgallery.NewPostProcessor(p, bus, galleries.Fetch)
+  // Create the PostProcessor from the Processor.
+  galleries := repository.Typed(repo, NewGallery)
+  pp := esgallery.NewPostProcessor(p, bus, galleries.Fetch)
 
-	return pp
+  return pp
 }
 ```
 
@@ -100,33 +100,36 @@ The `PostProcessor` runs in the background and processes images whenever a new
 stack is added to a galllery, or when the original variant of a stack is replaced.
 
 ```go
-package myap
+package myapp
 
 import (
-	"context"
-	"github.com/modernice/media-entity/goes/esgallery"
-	"github.com/modernice/media-tools/image"
-	"github.com/modernice/media-tools/image/compression"
+  "context"
+  "github.com/modernice/media-entity/goes/esgallery"
+  "github.com/modernice/media-tools/image"
+  "github.com/modernice/media-tools/image/compression"
 )
 
 func run(pp *PostProcessor) {
-	pipeline := image.Pipeline{
-		image.Resize(image.DimensionMap{
-			"sm": {640},
-			"md": {960},
-			"lg": {1280},
-			"xl": {1920},
-		}),
-		image.Compress(compression.JPEG(80)),
-	}
+  // Setup a processing pipeline
+  pipeline := image.Pipeline{
+    image.Resize(image.DimensionMap{
+      "sm": {640},
+      "md": {960},
+      "lg": {1280},
+      "xl": {1920},
+    }),
+    image.Compress(compression.JPEG(80)),
+  }
 
-	errs, err := pp.Run(context.TODO(), pipeline)
-	if err != nil {
-		panic(err)
-	}
+  // Start the post-processor as a background task
+  errs, err := pp.Run(context.TODO(), pipeline)
+  if err != nil {
+    panic(err)
+  }
 
-	for err := range errs {
-		log.Printf("post-processor: %v", err)
-	}
+  // Log processing errors
+  for err := range errs {
+    log.Printf("post-processor: %v", err)
+  }
 }
 ```

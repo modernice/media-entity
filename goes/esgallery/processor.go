@@ -73,7 +73,7 @@ type ProcessableGallery[StackID, ImageID ID] interface {
 	AddVariant(StackID, gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error)
 }
 
-// ApplyResultOption is an option for [*ProcessorResult.Apply].
+// ApplyResultOption is an option for [ProcessorResult.Apply].
 type ApplyResultOption func(*applyResultConfig)
 
 // ClearStack returns an [ApplyResultOption] that clears the variants of the
@@ -151,7 +151,7 @@ func NewProcessor[StackID, ImageID ID](
 // [gallery.Stack].
 //
 // The returned [ProcessorResult] can be applied to a gallery aggregate by
-// calling [*ProcessorResult.Apply]. Appropriate events will be raised to replace
+// calling [ProcessorResult.Apply]. Appropriate events will be raised to replace
 // the original variant of the [gallery.Stack], and/or to add new variants.
 //
 //	var gallery *Gallery
