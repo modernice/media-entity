@@ -125,10 +125,9 @@ func TestGallery_NewVariant(t *testing.T) {
 		t.Fatalf("add stack: %v", err)
 	}
 
-	variant := galleryx.NewImage(uuid.New())
-	variant.ID = uuid.New()
+	variantID := uuid.New()
 
-	stack, err = g.NewVariant(stack.ID, variant)
+	stack, err = g.NewVariant(stack.ID, variantID, galleryx.NewImage(variantID).Image)
 	if err != nil {
 		t.Fatalf("add variant: %v", err)
 	}
@@ -137,7 +136,9 @@ func TestGallery_NewVariant(t *testing.T) {
 		t.Fatalf("stack should have 2 images; has %d", len(stack.Variants))
 	}
 
-	testcmp.Equal(t, "added variant differs from provided variant", variant, stack.Variants[1])
+	wantVariant := galleryx.NewImage(variantID)
+
+	testcmp.Equal(t, "added variant differs from provided variant", wantVariant, stack.Variants[1])
 }
 
 func TestGallery_NewVariant_ErrDuplicateImage(t *testing.T) {
@@ -151,7 +152,7 @@ func TestGallery_NewVariant_ErrDuplicateImage(t *testing.T) {
 		t.Fatalf("add stack: %v", err)
 	}
 
-	_, err = g.NewVariant(stack.ID, original)
+	_, err = g.NewVariant(stack.ID, original.ID, original.Image)
 	if !errors.Is(err, gallery.ErrDuplicateID) {
 		t.Fatalf("adding variant with existing id should return ErrDuplicateID; got %v", err)
 	}
@@ -163,7 +164,7 @@ func TestGallery_RemoveVariant(t *testing.T) {
 	stack, _ := g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
 
 	variant := galleryx.NewImage(uuid.New())
-	g.NewVariant(stack.ID, variant)
+	g.NewVariant(stack.ID, variant.ID, variant.Image)
 
 	removed, err := g.RemoveVariant(stack.ID, variant.ID)
 	if err != nil {
@@ -179,7 +180,7 @@ func TestGallery_ReplaceVariant(t *testing.T) {
 	stack, _ := g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
 
 	old := galleryx.NewImage(uuid.New())
-	g.NewVariant(stack.ID, old)
+	g.NewVariant(stack.ID, old.ID, old.Image)
 
 	update := old
 	update.Names["en"] = "updated"

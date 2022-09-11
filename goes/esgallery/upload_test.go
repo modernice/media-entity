@@ -1,9 +1,7 @@
 package esgallery_test
 
 import (
-	"bytes"
 	"context"
-	_ "embed"
 	"fmt"
 	"io"
 	"testing"
@@ -14,54 +12,52 @@ import (
 	"github.com/modernice/media-entity/internal/galleryx"
 )
 
-//go:embed testdata/example.jpg
-var example []byte
+func TestUploader_Upload(t *testing.T) {
+	var storage esgallery.MemoryStorage
+	storage.SetRoot("esgallery")
 
-func newExample() io.Reader {
-	return bytes.NewReader(example)
-}
-
-func TestGallery_Upload(t *testing.T) {
-	storage := make(map[string]string)
-	put := esgallery.StorageFunc(func(_ context.Context, path string, contents io.Reader) error {
-		b, err := io.ReadAll(contents)
-		if err != nil {
-			return err
-		}
-		storage[path] = string(b)
-		return nil
-	})
-
+	cfg := UUIDConfig()
 	g := NewTestGallery(uuid.New())
 
-	pending := galleryx.NewImage(uuid.New())
-	stack, _ := g.NewStack(uuid.New(), pending)
+	up := esgallery.NewUploader(cfg, &storage)
+
+	stack, _ := g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
 
 	img := newExample()
+	gimg := galleryx.NewImage(uuid.New())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	uploaded, err := g.Upload(ctx, put, img, stack.ID, pending.ID)
+	variantID := uuid.New()
+
+	uploaded, err := up.Upload(ctx, g, stack.ID, variantID, img)
 	if err != nil {
 		t.Fatalf("upload failed: %v", err)
 	}
 
-	wantPath := fmt.Sprintf("esgallery/%s/%s/%s/%s", g.ID, stack.ID, pending.ID, pending.Filename)
+	wantPath := fmt.Sprintf("%s/%s/%s/%s", g.ID, stack.ID, variantID, gimg.Filename)
 
 	if uploaded.Storage.Path != wantPath {
 		t.Errorf("image should be uploaded to path %q; got %q", wantPath, uploaded.Storage.Path)
 	}
 
-	if len(storage) != 1 {
-		t.Fatalf("expected 1 file to be in storage; got %d", len(storage))
+	if len(storage.Files()) != 1 {
+		t.Fatalf("expected 1 file to be in storage; got %d", len(storage.Files()))
 	}
 
-	contents := storage[wantPath]
+	contentsReader, err := storage.Get(context.TODO(), uploaded.Storage.Path)
+	if err != nil {
+		t.Fatalf("get storage file: %v", err)
+	}
+	contents, err := io.ReadAll(contentsReader)
+	if err != nil {
+		t.Fatalf("read contents: %v", err)
+	}
 	wantContents := string(example)
 
-	if contents != wantContents {
-		t.Fatalf("uploaded file has wrong contents\n%s", cmp.Diff([]byte(wantContents), []byte(contents)))
+	if string(contents) != wantContents {
+		t.Fatalf("uploaded file has wrong contents\n%s", cmp.Diff(example, contents))
 	}
 
 	wantFilesize := len(example)

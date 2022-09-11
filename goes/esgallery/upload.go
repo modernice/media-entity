@@ -1,83 +1,104 @@
 package esgallery
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	stdimage "image"
 	"io"
-	"strings"
 
 	"github.com/modernice/goes/helper/pick"
 	"github.com/modernice/media-entity/gallery"
+	"github.com/modernice/media-entity/image"
 )
 
-// Storage is storage for gallery images. It is used by [*Gallery.Upload] to
-// upload
-type Storage interface {
-	Put(ctx context.Context, path string, contents io.Reader) error
+// Uploader uploads gallery images to (cloud) storage. An Uploader can be passed
+// to a [*Processor] to automatically upload processed images to (cloud) storage.
+type Uploader[StackID, ImageID ID] struct {
+	storage Storage
 }
 
-// StorageFunc allows ordinary functions to be used as [Storage].
-type StorageFunc func(ctx context.Context, path string, contents io.Reader) error
-
-// Put implements [Storage].
-func (put StorageFunc) Put(ctx context.Context, path string, contents io.Reader) error {
-	return put(ctx, path, contents)
+// NewUploader returns an [*Uploader] that uploads images to the provided [Storage].
+func NewUploader[StackID, ImageID ID](cfg Config[StackID, ImageID], storage Storage) *Uploader[StackID, ImageID] {
+	return &Uploader[StackID, ImageID]{
+		storage: storage,
+	}
 }
 
-// Upload uploads an image to storage and returns an [Image] that represents
-// the uploaded image. The returned [Image] is not automatically added to the
-// Gallery. Instead, it is returned so that the caller can decide if and when
-// to add it to the Gallery.
+// Uploads writes the image in `r` to the underlying [Storage] and returns a
+// [gallery.Image] that represents the uploaded image. The returned
+// [gallery.Image] can be added to a [*Gallery], either by calling
+// [*Gallery.AddVariant], or by applying a [ProcessorResult] to the gallery
+// with [ApplyProcessorResult].
 //
-//	img, err := g.Upload(context.TODO(), ...)
-//	stack, err := g.NewVariant(<stack-id>, img)
-func (g *Gallery[StackID, ImageID, Target]) Upload(
+// The provided StackID specifies the [gallery.Stack] the image should be added
+// to. The provided ImageID is used as the ID of the returned [gallery.Image].
+// The storage path of the uploaded image is determined by the StackID, ImageID,
+// and the ID of the provided gallery.
+//
+// The filesize and dimensions of the uploaded image are determined while
+// uploading to storage, and set on the returned [gallery.Image]. The Filename
+// of the returned [gallery.Image] is set to the Filename of the original image
+// of the [gallery.Stack].
+func (u *Uploader[StackID, ImageID]) Upload(
 	ctx context.Context,
-	storage Storage,
-	img io.Reader,
+	g ProcessableGallery[StackID, ImageID],
 	stackID StackID,
 	variantID ImageID,
+	r io.Reader,
 ) (gallery.Image[ImageID], error) {
 	stack, ok := g.Stack(stackID)
 	if !ok {
 		return gallery.Image[ImageID]{}, gallery.ErrStackNotFound
 	}
+	original := stack.Original()
 
-	variant, ok := stack.Variant(variantID)
-	if !ok {
-		return gallery.Image[ImageID]{}, gallery.ErrVariantNotFound
+	var info detectFileInfo
+	r = io.TeeReader(r, &info)
+
+	galleryID := pick.AggregateID(g)
+	path := variantPath(galleryID, stackID, variantID, original.Filename)
+
+	storage, err := u.storage.Put(ctx, path, r)
+	if err != nil {
+		return gallery.Image[ImageID]{}, fmt.Errorf("storage: %w", err)
 	}
 
-	filename := strings.TrimSpace(variant.Filename)
-	if filename == "" {
-		filename = fmt.Sprintf("%s", variant.ID)
-	}
-	if filename == "" {
-		filename = fmt.Sprintf("%v", variant.ID)
+	dims, err := info.Dimensions()
+	if err != nil {
+		return gallery.Image[ImageID]{}, fmt.Errorf("detect image dimensions: %w", err)
 	}
 
-	galleryID := pick.AggregateID(g.target)
-	path := fmt.Sprintf("esgallery/%s/%s/%s/%s", galleryID, stackID, variant.ID, filename)
+	variantImg := original.Image.Clone()
+	variantImg.Storage = storage
+	variantImg.Filename = original.Filename
+	variantImg.Filesize = info.size
+	variantImg.Dimensions = dims
 
-	var size filesize
-	img = io.TeeReader(img, &size)
-
-	if err := storage.Put(ctx, path, img); err != nil {
-		return variant, fmt.Errorf("storage: %w", err)
+	variant, err := stack.NewVariant(variantID, variantImg)
+	if err != nil {
+		return gallery.Image[ImageID]{}, fmt.Errorf("create variant: %w", err)
 	}
 
-	uploaded := variant.Clone()
-	uploaded.Storage.Path = path
-	uploaded.Filesize = int(size)
-
-	return uploaded, nil
+	return variant, nil
 }
 
-type filesize int
+type detectFileInfo struct {
+	size int
+	data []byte
+}
 
-func (f *filesize) Write(p []byte) (int, error) {
+func (f *detectFileInfo) Write(p []byte) (int, error) {
+	f.data = append(f.data, p...)
 	l := len(p)
-	s := int(*f)
-	*f = filesize(s + l)
+	f.size += l
 	return l, nil
+}
+
+func (f *detectFileInfo) Dimensions() (image.Dimensions, error) {
+	img, _, err := stdimage.Decode(bytes.NewReader(f.data))
+	if err != nil {
+		return image.Dimensions{}, fmt.Errorf("decode image: %w", err)
+	}
+	return image.Dimensions{img.Bounds().Dx(), img.Bounds().Dy()}, nil
 }

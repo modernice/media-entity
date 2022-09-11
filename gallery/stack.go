@@ -1,7 +1,10 @@
 package gallery
 
 import (
+	"fmt"
+
 	"github.com/modernice/media-entity/image"
+	"github.com/modernice/media-entity/internal"
 	imgtools "github.com/modernice/media-tools/image"
 )
 
@@ -29,6 +32,7 @@ type Image[ID comparable] struct {
 
 	ID       ID   `json:"id"`
 	Original bool `json:"original"`
+	Tags     Tags `json:"tags"`
 }
 
 // Clone returns a deep-copy of the image.
@@ -40,6 +44,14 @@ func (img Image[ID]) Clone() Image[ID] {
 // ZeroStack returns the zero-value [Stack].
 func ZeroStack[ID, ImageID comparable]() (zero Stack[ID, ImageID]) {
 	return zero
+}
+
+// Last returns the last [Image] of the [Stack].
+func (s Stack[ID, ImageID]) Last() Image[ImageID] {
+	if len(s.Variants) == 0 {
+		return zeroImage[ImageID]()
+	}
+	return s.Variants[len(s.Variants)-1]
 }
 
 // Clone returns a deep-copy of the Stack.
@@ -77,6 +89,20 @@ func (s Stack[ID, ImageID]) Image(id ImageID) (Image[ImageID], bool) {
 // Variant is an alias for s.Image.
 func (s Stack[ID, ImageID]) Variant(id ImageID) (Image[ImageID], bool) {
 	return s.Image(id)
+}
+
+// NewVariant returns a new gallery [Image] with the given id. No error is
+// returned if the provided ImageID already exists in the [Stack].
+func (s Stack[ID, ImageID]) NewVariant(id ImageID, img image.Image) (Image[ImageID], error) {
+	if id == internal.Zero[ImageID]() {
+		return zeroImage[ImageID](), fmt.Errorf("image id: %w", ErrEmptyID)
+	}
+
+	return Image[ImageID]{
+		ID:       id,
+		Image:    img.Normalize(),
+		Original: false,
+	}, nil
 }
 
 // Tag returns a copy of the [Stack] with the given tags added.

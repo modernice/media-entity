@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/modernice/media-entity/image"
 	"github.com/modernice/media-entity/internal"
 	"github.com/modernice/media-entity/internal/slicex"
 	"golang.org/x/exp/slices"
@@ -113,34 +114,22 @@ func (g *Base[StackID, ImageID]) RemoveStack(id StackID) (Stack[StackID, ImageID
 	return zeroStack[StackID, ImageID](), ErrStackNotFound
 }
 
-// NewVariant adds an image as a new variant to the [Stack] with the given id.
-// The [Image.Metadata.Original] field of the provided image is set to `false`
-// before adding it to the [Stack]. If the gallery does not contain a [Stack]
-// with the given id, an error that satisfies errors.Is(err, ErrStackNotFound)
-// is returned. If the provided image id is empty (zero value), an error that
-// satisfies errors.Is(err, ErrEmptyID) is returned.
-func (g *Base[StackID, ImageID]) NewVariant(stackID StackID, img Image[ImageID]) (Stack[StackID, ImageID], error) {
-	if img.ID == internal.Zero[ImageID]() {
-		return zeroStack[StackID, ImageID](), fmt.Errorf("image id: %w", ErrEmptyID)
-	}
-
+// NewVariant adds an image as a new variant to the [Stack] with the given id,
+// and returns the updated [Stack] that contains the new [Image]. If the gallery
+// does not contain a [Stack] with the given id, an error that satisfies
+// errors.Is(err, ErrStackNotFound) is returned.
+func (g *Base[StackID, ImageID]) NewVariant(stackID StackID, variantID ImageID, img image.Image) (Stack[StackID, ImageID], error) {
 	stack, ok := g.Stack(stackID)
 	if !ok {
 		return zeroStack[StackID, ImageID](), ErrStackNotFound
 	}
 
-	// Stack already contains an image with the same id.
-	if _, ok := stack.Image(img.ID); ok {
-		return zeroStack[StackID, ImageID](), fmt.Errorf("image id: %w", ErrDuplicateID)
+	variant, err := stack.NewVariant(variantID, img)
+	if err != nil {
+		return zeroStack[StackID, ImageID](), err
 	}
 
-	// Force initialize the "Names" and "Descriptions" fields of the image.
-	img.Image = img.Normalize()
-
-	// Mark as a variant.
-	img.Original = false
-
-	stack.Variants = append(stack.Variants, img)
+	stack.Variants = append(stack.Variants, variant)
 	g.replaceStack(stack.ID, stack)
 
 	return stack, nil

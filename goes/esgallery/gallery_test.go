@@ -12,17 +12,6 @@ import (
 	"github.com/modernice/media-entity/internal/testcmp"
 )
 
-type TestGallery struct {
-	*aggregate.Base
-	*esgallery.Gallery[uuid.UUID, uuid.UUID, *TestGallery]
-}
-
-func NewTestGallery(id uuid.UUID) *TestGallery {
-	g := &TestGallery{Base: aggregate.New("test.esgallery", id)}
-	g.Gallery = esgallery.New[uuid.UUID, uuid.UUID](g)
-	return g
-}
-
 func TestNew(t *testing.T) {
 	base := aggregate.New("foo", uuid.New())
 	g := esgallery.New[uuid.UUID, uuid.UUID](base)
@@ -81,7 +70,7 @@ func TestGallery_NewVariant(t *testing.T) {
 
 	variant := galleryx.NewImage(uuid.New())
 
-	stack, err := g.NewVariant(stack.ID, variant)
+	stack, err := g.NewVariant(stack.ID, variant.ID, variant.Image)
 	if err != nil {
 		t.Fatalf("add variant: %v", err)
 	}
@@ -109,7 +98,7 @@ func TestGallery_RemoveVariant(t *testing.T) {
 
 	variant := galleryx.NewImage(uuid.New())
 
-	stack, err := g.NewVariant(stack.ID, variant)
+	stack, err := g.NewVariant(stack.ID, variant.ID, variant.Image)
 	if err != nil {
 		t.Fatalf("add variant: %v", err)
 	}
@@ -137,7 +126,7 @@ func TestGallery_ReplaceVariant(t *testing.T) {
 
 	stack, _ := g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
 	variant := galleryx.NewImage(uuid.New())
-	stack, _ = g.NewVariant(stack.ID, variant)
+	stack, _ = g.NewVariant(stack.ID, variant.ID, variant.Image)
 
 	replacement := variant.Clone()
 	replacement.Names["en"] = "replacement"
@@ -243,17 +232,4 @@ func TestGallery_Sort(t *testing.T) {
 	expectStackSorting(t, []uuid.UUID{ids[2], ids[3], ids[1], ids[0]}, g.Stacks)
 
 	test.Change(t, g, esgallery.Sorted, test.EventData(sorting))
-}
-
-func expectStackSorting[StackID, ImageID comparable](t *testing.T, sorting []StackID, stacks []gallery.Stack[StackID, ImageID]) {
-	if len(sorting) != len(stacks) {
-		t.Fatalf("sorting and stacks should have the same length; sorting has %d, stacks has %d", len(sorting), len(stacks))
-	}
-
-	for i, id := range sorting {
-		sid := stacks[i].ID
-		if sid != id {
-			t.Fatalf("stack #%d should have id %v; got %v", i+1, id, sid)
-		}
-	}
 }

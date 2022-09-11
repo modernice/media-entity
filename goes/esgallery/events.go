@@ -17,33 +17,33 @@ const (
 	Sorted          = "goes.gallery.sorted"
 )
 
-type VariantAddedData[StackID, ImageID comparable] struct {
+type VariantAddedData[StackID, ImageID ID] struct {
 	StackID StackID
 	Variant gallery.Image[ImageID]
 }
 
-type VariantRemovedData[StackID, ImageID comparable] struct {
+type VariantRemovedData[StackID, ImageID ID] struct {
 	StackID StackID
 	ImageID ImageID
 }
 
-type VariantReplacedData[StackID, ImageID comparable] struct {
+type VariantReplacedData[StackID, ImageID ID] struct {
 	StackID StackID
 	Variant gallery.Image[ImageID]
 }
 
-type StackTaggedData[StackID comparable] struct {
+type StackTaggedData[StackID ID] struct {
 	StackID StackID
 	Tags    gallery.Tags
 }
 
-type StackUntaggedData[StackID comparable] struct {
+type StackUntaggedData[StackID ID] struct {
 	StackID StackID
 	Tags    gallery.Tags
 }
 
 // RegisterEvents registers the [*Gallery] events into an event registry.
-func RegisterEvents[StackID, ImageID comparable](r codec.Registerer) {
+func RegisterEvents[StackID, ImageID ID](r codec.Registerer) {
 	codec.Register[gallery.Stack[StackID, ImageID]](r, StackAdded)
 	codec.Register[StackID](r, StackRemoved)
 	codec.Register[VariantAddedData[StackID, ImageID]](r, VariantAdded)

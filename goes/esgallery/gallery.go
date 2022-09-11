@@ -7,6 +7,7 @@ import (
 	"github.com/modernice/goes/command"
 	"github.com/modernice/goes/event"
 	"github.com/modernice/media-entity/gallery"
+	"github.com/modernice/media-entity/image"
 	"github.com/modernice/media-entity/internal/slicex"
 )
 
@@ -69,7 +70,7 @@ func New[StackID, ImageID ID, T Target](target T) *Gallery[StackID, ImageID, T] 
 
 	event.ApplyWith(target, g.newStack, StackAdded)
 	event.ApplyWith(target, g.removeStack, StackRemoved)
-	event.ApplyWith(target, g.newVariant, VariantAdded)
+	event.ApplyWith(target, g.addVariant, VariantAdded)
 	event.ApplyWith(target, g.removeVariant, VariantRemoved)
 	event.ApplyWith(target, g.replaceVariant, VariantReplaced)
 	event.ApplyWith(target, g.tag, StackTagged)
@@ -87,7 +88,7 @@ func New[StackID, ImageID ID, T Target](target T) *Gallery[StackID, ImageID, T] 
 	}, RemoveStackCmd)
 
 	command.ApplyWith(target, func(load addVariant[StackID, ImageID]) error {
-		_, err := g.NewVariant(load.StackID, load.Variant)
+		_, err := g.NewVariant(load.StackID, load.VariantID, load.Image)
 		return err
 	}, AddVariantCmd)
 
@@ -120,12 +121,12 @@ func New[StackID, ImageID ID, T Target](target T) *Gallery[StackID, ImageID, T] 
 }
 
 // Target returns the actual aggregate that embeds this Gallery.
-func (g *Gallery[StackID, ImageID, T]) Target() T {
+func (g *Gallery[StackID, ImageID, Target]) Target() Target {
 	return g.target
 }
 
 // NewStack is the event-sourced variant of [*gallery.Base.NewStack].
-func (g *Gallery[StackID, ImageID, T]) NewStack(id StackID, img gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error) {
+func (g *Gallery[StackID, ImageID, Target]) NewStack(id StackID, img gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error) {
 	var stack gallery.Stack[StackID, ImageID]
 	if err := g.DryRun(func(g *gallery.Base[StackID, ImageID]) error {
 		var err error
@@ -140,13 +141,13 @@ func (g *Gallery[StackID, ImageID, T]) NewStack(id StackID, img gallery.Image[Im
 	return stack, nil
 }
 
-func (g *Gallery[StackID, ImageID, T]) newStack(evt event.Of[gallery.Stack[StackID, ImageID]]) {
+func (g *Gallery[StackID, ImageID, Target]) newStack(evt event.Of[gallery.Stack[StackID, ImageID]]) {
 	stack := evt.Data()
 	g.Base.NewStack(stack.ID, stack.Original())
 }
 
 // RemoveStack is the event-sourced variant of [*gallery.Base.RemoveStack].
-func (g *Gallery[StackID, ImageID, T]) RemoveStack(id StackID) (gallery.Stack[StackID, ImageID], error) {
+func (g *Gallery[StackID, ImageID, Target]) RemoveStack(id StackID) (gallery.Stack[StackID, ImageID], error) {
 	var stack gallery.Stack[StackID, ImageID]
 	if err := g.DryRun(func(g *gallery.Base[StackID, ImageID]) error {
 		var err error
@@ -161,19 +162,49 @@ func (g *Gallery[StackID, ImageID, T]) RemoveStack(id StackID) (gallery.Stack[St
 	return stack, nil
 }
 
-func (g *Gallery[StackID, ImageID, T]) removeStack(evt event.Of[StackID]) {
+func (g *Gallery[StackID, ImageID, Target]) removeStack(evt event.Of[StackID]) {
 	g.Base.RemoveStack(evt.Data())
 }
 
 // NewVariant is the event-sourced variant of [*gallery.Base.NewVariant].
-func (g *Gallery[StackID, ImageID, T]) NewVariant(stackID StackID, variant gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error) {
+func (g *Gallery[StackID, ImageID, Target]) NewVariant(stackID StackID, variantID ImageID, img image.Image) (gallery.Stack[StackID, ImageID], error) {
 	var stack gallery.Stack[StackID, ImageID]
 	if err := g.DryRun(func(g *gallery.Base[StackID, ImageID]) error {
 		var err error
-		stack, err = g.NewVariant(stackID, variant)
+		stack, err = g.NewVariant(stackID, variantID, img)
 		return err
 	}); err != nil {
 		return stack, err
+	}
+
+	aggregate.Next(g.target, VariantAdded, VariantAddedData[StackID, ImageID]{
+		StackID: stackID,
+		Variant: stack.Last(),
+	})
+
+	return stack, nil
+}
+
+// AddVariant adds a variant to a [gallery.Stack]. If the [gallery.Stack] cannot
+// be found in the gallery, an error that satisfies
+// errors.Is(err, [gallery.ErrStackNotFound]) is returned. If the ID of the
+// provided variant is empty (zero-value), an error that satisfies
+// errors.Is(err, [gallery.ErrEmptyID]) is returned. If the ID of the variant
+// already exists within the same [gallery.Stack], an error that satisfies
+// errors.Is(err, [gallery.ErrDuplicateID]) is returned.
+func (g *Gallery[StackID, ImageID, Target]) AddVariant(stackID StackID, variant gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error) {
+	stack, ok := g.Stack(stackID)
+	if !ok {
+		return gallery.ZeroStack[StackID, ImageID](), gallery.ErrStackNotFound
+	}
+
+	var zeroID ImageID
+	if variant.ID == zeroID {
+		return gallery.ZeroStack[StackID, ImageID](), gallery.ErrEmptyID
+	}
+
+	if _, ok := stack.Variant(variant.ID); ok {
+		return gallery.ZeroStack[StackID, ImageID](), gallery.ErrDuplicateID
 	}
 
 	aggregate.Next(g.target, VariantAdded, VariantAddedData[StackID, ImageID]{
@@ -184,12 +215,13 @@ func (g *Gallery[StackID, ImageID, T]) NewVariant(stackID StackID, variant galle
 	return stack, nil
 }
 
-func (g *Gallery[StackID, ImageID, T]) newVariant(evt event.Of[VariantAddedData[StackID, ImageID]]) {
-	g.Base.NewVariant(evt.Data().StackID, evt.Data().Variant)
+func (g *Gallery[StackID, ImageID, Target]) addVariant(evt event.Of[VariantAddedData[StackID, ImageID]]) {
+	data := evt.Data()
+	g.Base.NewVariant(data.StackID, data.Variant.ID, data.Variant.Image)
 }
 
 // RemoveVariant is the event-sourced variant of [*gallery.Base.RemoveVariant].
-func (g *Gallery[StackID, ImageID, T]) RemoveVariant(stackID StackID, imageID ImageID) (gallery.Image[ImageID], error) {
+func (g *Gallery[StackID, ImageID, Target]) RemoveVariant(stackID StackID, imageID ImageID) (gallery.Image[ImageID], error) {
 	var variant gallery.Image[ImageID]
 	if err := g.DryRun(func(g *gallery.Base[StackID, ImageID]) error {
 		var err error
@@ -207,13 +239,13 @@ func (g *Gallery[StackID, ImageID, T]) RemoveVariant(stackID StackID, imageID Im
 	return variant, nil
 }
 
-func (g *Gallery[StackID, ImageID, T]) removeVariant(evt event.Of[VariantRemovedData[StackID, ImageID]]) {
+func (g *Gallery[StackID, ImageID, Target]) removeVariant(evt event.Of[VariantRemovedData[StackID, ImageID]]) {
 	data := evt.Data()
 	g.Base.RemoveVariant(data.StackID, data.ImageID)
 }
 
 // ReplaceVariant is the event-sourced variant of [*gallery.Base.ReplaceVariant].
-func (g *Gallery[StackID, ImageID, T]) ReplaceVariant(stackID StackID, variant gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error) {
+func (g *Gallery[StackID, ImageID, Target]) ReplaceVariant(stackID StackID, variant gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error) {
 	var stack gallery.Stack[StackID, ImageID]
 	if err := g.DryRun(func(g *gallery.Base[StackID, ImageID]) error {
 		var err error
@@ -231,13 +263,13 @@ func (g *Gallery[StackID, ImageID, T]) ReplaceVariant(stackID StackID, variant g
 	return stack, nil
 }
 
-func (g *Gallery[StackID, ImageID, T]) replaceVariant(evt event.Of[VariantReplacedData[StackID, ImageID]]) {
+func (g *Gallery[StackID, ImageID, Target]) replaceVariant(evt event.Of[VariantReplacedData[StackID, ImageID]]) {
 	data := evt.Data()
 	g.Base.ReplaceVariant(data.StackID, data.Variant)
 }
 
 // Tag is the event-sourced variant of [*gallery.Base.Tag].
-func (g *Gallery[StackID, ImageID, T]) Tag(stackID StackID, tags ...string) (gallery.Stack[StackID, ImageID], error) {
+func (g *Gallery[StackID, ImageID, Target]) Tag(stackID StackID, tags ...string) (gallery.Stack[StackID, ImageID], error) {
 	var stack gallery.Stack[StackID, ImageID]
 	if err := g.DryRun(func(g *gallery.Base[StackID, ImageID]) error {
 		var err error
@@ -255,13 +287,13 @@ func (g *Gallery[StackID, ImageID, T]) Tag(stackID StackID, tags ...string) (gal
 	return stack, nil
 }
 
-func (g *Gallery[StackID, ImageID, T]) tag(evt event.Of[StackTaggedData[StackID]]) {
+func (g *Gallery[StackID, ImageID, Target]) tag(evt event.Of[StackTaggedData[StackID]]) {
 	data := evt.Data()
 	g.Base.Tag(data.StackID, data.Tags...)
 }
 
 // Untag is the event-sourced variant of [*gallery.Base.Untag].
-func (g *Gallery[StackID, ImageID, T]) Untag(stackID StackID, tags ...string) (gallery.Stack[StackID, ImageID], error) {
+func (g *Gallery[StackID, ImageID, Target]) Untag(stackID StackID, tags ...string) (gallery.Stack[StackID, ImageID], error) {
 	var stack gallery.Stack[StackID, ImageID]
 	if err := g.DryRun(func(g *gallery.Base[StackID, ImageID]) error {
 		var err error
@@ -279,13 +311,13 @@ func (g *Gallery[StackID, ImageID, T]) Untag(stackID StackID, tags ...string) (g
 	return stack, nil
 }
 
-func (g *Gallery[StackID, ImageID, T]) untag(evt event.Of[StackUntaggedData[StackID]]) {
+func (g *Gallery[StackID, ImageID, Target]) untag(evt event.Of[StackUntaggedData[StackID]]) {
 	data := evt.Data()
 	g.Base.Untag(data.StackID, data.Tags...)
 }
 
 // Sort is the event-sourced variant of [*gallery.Base.Sort].
-func (g *Gallery[StackID, ImageID, T]) Sort(sorting []StackID) {
+func (g *Gallery[StackID, ImageID, Target]) Sort(sorting []StackID) {
 	sorting = slicex.Filter(sorting, func(id StackID) bool {
 		return slicex.ContainsFunc(g.Stacks, func(s gallery.Stack[StackID, ImageID]) bool {
 			return s.ID == id
@@ -299,6 +331,6 @@ func (g *Gallery[StackID, ImageID, T]) Sort(sorting []StackID) {
 	aggregate.Next(g.target, Sorted, sorting)
 }
 
-func (g *Gallery[StackID, ImageID, T]) sort(evt event.Of[[]StackID]) {
+func (g *Gallery[StackID, ImageID, Target]) sort(evt event.Of[[]StackID]) {
 	g.Base.Sort(evt.Data())
 }
