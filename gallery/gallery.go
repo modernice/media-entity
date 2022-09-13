@@ -79,9 +79,9 @@ func (g *Base[StackID, ImageID]) NewStack(id StackID, img Image[ImageID]) (Stack
 		return zeroStack[StackID, ImageID](), fmt.Errorf("image id: %w", ErrEmptyID)
 	}
 
-	// Stack already contains an image with the same id.
+	// Gallery already contains a Stack with the same id.
 	if _, ok := g.Stack(id); ok {
-		return zeroStack[StackID, ImageID](), fmt.Errorf("image id: %w", ErrDuplicateID)
+		return zeroStack[StackID, ImageID](), fmt.Errorf("stack id: %w", ErrDuplicateID)
 	}
 
 	// Force initialize the "Names" and "Descriptions" fields of the image.
@@ -122,6 +122,10 @@ func (g *Base[StackID, ImageID]) NewVariant(stackID StackID, variantID ImageID, 
 	stack, ok := g.Stack(stackID)
 	if !ok {
 		return zeroStack[StackID, ImageID](), ErrStackNotFound
+	}
+
+	if _, ok := stack.Variant(variantID); ok {
+		return zeroStack[StackID, ImageID](), fmt.Errorf("variant id: %w", ErrDuplicateID)
 	}
 
 	variant, err := stack.NewVariant(variantID, img)
