@@ -290,6 +290,14 @@ func TestProcessor_Run_WithAutoApply(t *testing.T) {
 
 	testProcessorResult(t, result, &storage, g, stack)
 
+	if !result.Applied {
+		t.Fatalf("Applied field of result should be true")
+	}
+
+	if !result.Saved {
+		t.Fatalf("Saved field of result should be true")
+	}
+
 	g, err = galleries.Fetch(ctx, g.ID)
 	if err != nil {
 		t.Fatalf("fetch gallery: %v", err)
@@ -297,6 +305,76 @@ func TestProcessor_Run_WithAutoApply(t *testing.T) {
 
 	if g.AggregateVersion() <= 2 {
 		t.Fatalf("expected aggregate version to greater than 2, is %d", g.AggregateVersion())
+	}
+}
+
+func TestProcessor_Run_WithAutoApply_noSave(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var storage esgallery.MemoryStorage
+	uploader := esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
+	ebus := eventbus.New()
+	estore := eventstore.WithBus(eventstore.New(), ebus)
+	repo := repository.New(estore)
+	galleries := repository.Typed(repo, NewTestGallery)
+	p := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
+	pp := esgallery.NewPostProcessor(p, ebus, galleries.Fetch, esgallery.WithAutoApply[uuid.UUID, uuid.UUID, *TestGallery](true, nil))
+
+	pipeline := imgtools.Pipeline{
+		imgtools.Resize(imgtools.DimensionMap{
+			"sm": {640},
+			"md": {960},
+			"lg": {1280},
+		}),
+	}
+
+	g := NewTestGallery(uuid.New())
+
+	r := newExample()
+	originalVariant := galleryx.NewImage(uuid.New())
+	stack, _ := g.NewStack(uuid.New(), originalVariant)
+
+	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
+	if err != nil {
+		t.Fatalf("upload original image: %v", err)
+	}
+
+	results, errs, err := pp.Run(ctx, pipeline)
+	if err != nil {
+		t.Fatalf("run pipeline: %v", err)
+	}
+	go testx.PanicOn(errs)
+
+	// Trigger post-processor
+	if err := galleries.Save(ctx, g); err != nil {
+		t.Fatalf("save gallery: %v", err)
+	}
+
+	var result esgallery.ProcessorResult[uuid.UUID, uuid.UUID]
+	select {
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for post-processor result")
+	case result = <-results:
+	}
+
+	testProcessorResult(t, result, &storage, g, stack)
+
+	if !result.Applied {
+		t.Fatalf("Applied field of result should be true")
+	}
+
+	if result.Saved {
+		t.Fatalf("Saved field of result should be true")
+	}
+
+	g, err = galleries.Fetch(ctx, g.ID)
+	if err != nil {
+		t.Fatalf("fetch gallery: %v", err)
+	}
+
+	if g.AggregateVersion() != 1 {
+		t.Fatalf("expected aggregate version to be 1, is %d", g.AggregateVersion())
 	}
 }
 

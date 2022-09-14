@@ -43,6 +43,18 @@ type ProcessorResult[StackID, ImageID ID] struct {
 
 	// Images are the processed images.
 	Images []ProcessedImage[ImageID]
+
+	// Applied is set to true if the post-processor applied the result to the
+	// gallery. This is the case if the [WithAutoApply] option is enabled.
+	// Consider passing the [DiscardResults] option to [PostProcessor.Run] when
+	// enabling [WithAutoApply], to avoid having to pull the results from the
+	// returned channel.
+	Applied bool
+
+	// Saved is set to true if the post-processor saved the gallery after
+	// applying the result to it. This is the case if a non-nil "save" function
+	// was passed to [WithAutoApply]. Saved can only be true if Applied is true.
+	Saved bool
 }
 
 // ProcessedImage provides the built [gallery.Image], and the processed image
@@ -329,6 +341,7 @@ func Workers(workers int) RunProcessorOption {
 
 // DiscardResults returns a [RunProcessorOption] that discards the
 // [ProcessorResult]s instead of returning them in the result channel.
+// Typically, you want to use this option in conjunction with [WithAutoApply].
 func DiscardResults(discard bool) RunProcessorOption {
 	return func(cfg *runProcessorConfig) {
 		cfg.discardResults = discard
@@ -427,7 +440,7 @@ func (q *processorQueue[Gallery, StackID, ImageID]) work() {
 		result.Trigger = evt
 
 		if q.processor.autoApply {
-			if err := q.apply(result, pick.AggregateID(evt)); err != nil {
+			if err := q.apply(&result, pick.AggregateID(evt)); err != nil {
 				q.fail(fmt.Errorf("apply result: %w", err))
 			}
 		}
@@ -438,7 +451,7 @@ func (q *processorQueue[Gallery, StackID, ImageID]) work() {
 	}
 }
 
-func (q *processorQueue[Gallery, StackID, ImageID]) apply(result ProcessorResult[StackID, ImageID], galleryID uuid.UUID) error {
+func (q *processorQueue[Gallery, StackID, ImageID]) apply(result *ProcessorResult[StackID, ImageID], galleryID uuid.UUID) error {
 	g, err := q.processor.fetchGallery(q.ctx, galleryID)
 	if err != nil {
 		return fmt.Errorf("fetch gallery: %w", err)
@@ -446,11 +459,13 @@ func (q *processorQueue[Gallery, StackID, ImageID]) apply(result ProcessorResult
 	if err := result.Apply(g); err != nil {
 		return err
 	}
+	result.Applied = true
 
 	if q.processor.autoSave != nil {
 		if err := q.processor.autoSave(q.ctx, g); err != nil {
 			return fmt.Errorf("autosave gallery: %w", err)
 		}
+		result.Saved = true
 	}
 
 	return nil
