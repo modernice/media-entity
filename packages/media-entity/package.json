@@ -1,0 +1,37 @@
+{
+  "name": "@modernice/media-entity",
+  "version": "0.0.1",
+  "description": "media-entity types",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./gallery": {
+      "types": "./dist/entities/gallery.d.ts",
+      "import": "./dist/entities/gallery.mjs",
+      "require": "./dist/entities/gallery.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "unbuild"
+  },
+  "keywords": [],
+  "author": "Saman Hosseini <saman@modernice.ltd>",
+  "license": "MIT",
+  "dependencies": {
+    "@modernice/typed-response": "v0.4.6"
+  },
+  "devDependencies": {
+    "typescript": "^4.8.3",
+    "unbuild": "^0.8.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

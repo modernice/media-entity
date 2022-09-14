@@ -12,6 +12,10 @@ github.com/modernice/media-entity/goes v0.0.0-20220913144730-8ebf7b9048ae h1:h/A
 github.com/modernice/media-entity/goes v0.0.0-20220913144730-8ebf7b9048ae/go.mod h1:/WP3jNEreg5nSMa7UjYgJn2H7ebeZKZaeMHVbSfZsXg=
 github.com/modernice/media-tools v0.0.1 h1:uoIN3A+6QbbvfesnMNRmR2y5Dpy5rebge43exVH1pSE=
 github.com/modernice/media-tools v0.0.1/go.mod h1:JgHPrBsqEuQ3sFxNKZLPtyLGnUA7+l8mBASza7Hc3EE=
+github.com/modernice/media-tools v0.0.2 h1:gYdlcKeYcKRvVh2hj3MBuPd0/mBCcW3rAUTGFvR7xa8=
+github.com/modernice/media-tools v0.0.2/go.mod h1:JgHPrBsqEuQ3sFxNKZLPtyLGnUA7+l8mBASza7Hc3EE=
+github.com/modernice/media-tools v0.0.3 h1:FRDXtMXy0sVVCG0mPUKFQv53Zqti0gKBrehZIgE6WgU=
+github.com/modernice/media-tools v0.0.3/go.mod h1:JgHPrBsqEuQ3sFxNKZLPtyLGnUA7+l8mBASza7Hc3EE=
 github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe h1:iruDEfMl2E6fbMZ9s0scYfZQ84/6SPL6zC8ACM2oIL0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/vitali-fedulov/images4 v1.1.3 h1:uRnF1B8+UaIlV4pkbX28ouyz5LBVtFqcYDO864PsP58=

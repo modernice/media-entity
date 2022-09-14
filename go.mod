@@ -11,7 +11,7 @@ require (
 
 require (
 	github.com/disintegration/imaging v1.6.2 // indirect
-	github.com/modernice/media-tools v0.0.1
+	github.com/modernice/media-tools v0.0.3
 	github.com/vitali-fedulov/images4 v1.1.3 // indirect
 	golang.org/x/exp v0.0.0-20220909182711-5c715a9e8561
 	golang.org/x/image v0.0.0-20220902085622-e7cb96979f69 // indirect
