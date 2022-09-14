@@ -1,0 +1,25 @@
+syntax = "proto3";
+package mediaentity.image.v0;
+option go_package = "github.com/modernice/media-entity/api/proto/gen/image/v0;imagepb";
+
+// Image represents an image.
+message Image {
+	Storage storage = 1;
+	string filename = 2;
+	int64 filesize = 3;
+	Dimensions dimensions = 4;
+	map<string, string> names = 5;
+	map<string, string> descriptions = 6;
+}
+
+// Storage provides the storage information of an image.
+message Storage {
+	string provider = 1;
+	string path = 2;
+}
+
+// Dimensions are the width and height of an image.
+message Dimensions {
+	int64 width = 1;
+	int64 height = 2;
+}

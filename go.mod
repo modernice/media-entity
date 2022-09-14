@@ -6,10 +6,8 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/modernice/goes v0.2.3
-	github.com/modernice/media-entity/goes v0.0.0-20220913144222-b6a0b527ae26
+	github.com/modernice/media-entity/goes v0.0.0-20220913144730-8ebf7b9048ae
 )
-
-require golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 
 require (
 	github.com/disintegration/imaging v1.6.2 // indirect

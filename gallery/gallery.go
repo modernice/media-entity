@@ -27,13 +27,19 @@ var (
 	ErrVariantNotFound = errors.New("variant not found in stack")
 )
 
+// ID is the type constraint for [Stack]s and [Image]s of a gallery.
+type ID interface {
+	comparable
+	fmt.Stringer
+}
+
 // Base provides the core implementation for image galleries.
-type Base[StackID, ImageID comparable] struct {
+type Base[StackID, ImageID ID] struct {
 	DTO[StackID, ImageID]
 }
 
 // DTO provides the fields for [*Base].
-type DTO[StackID, ImageID comparable] struct {
+type DTO[StackID, ImageID ID] struct {
 	Stacks []Stack[StackID, ImageID] `json:"stacks"`
 }
 
@@ -48,7 +54,7 @@ type DTO[StackID, ImageID comparable] struct {
 //	func NewGallery() *MyGallery {
 //		return &MyGallery{Base: gallery.New[string]()}
 //	}
-func New[StackID, ImageID comparable]() *Base[StackID, ImageID] {
+func New[StackID, ImageID ID]() *Base[StackID, ImageID] {
 	return &Base[StackID, ImageID]{}
 }
 
@@ -273,12 +279,12 @@ func (g *Base[StackID, ImageID]) replaceStack(id StackID, stack Stack[StackID, I
 	}
 }
 
-func zeroStack[ID, ImageID comparable]() (zero Stack[ID, ImageID]) {
+func zeroStack[StackID, ImageID ID]() (zero Stack[StackID, ImageID]) {
 	return zero
 }
 
-func cloneStacks[ID, ImageID comparable](stacks []Stack[ID, ImageID]) []Stack[ID, ImageID] {
-	out := make([]Stack[ID, ImageID], len(stacks))
+func cloneStacks[StackID, ImageID ID](stacks []Stack[StackID, ImageID]) []Stack[StackID, ImageID] {
+	out := make([]Stack[StackID, ImageID], len(stacks))
 	for i, stack := range stacks {
 		out[i] = stack.Clone()
 	}

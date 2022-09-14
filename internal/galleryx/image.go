@@ -6,7 +6,7 @@ import (
 )
 
 // NewImage returns a new stub image with the given id.
-func NewImage[ID comparable](id ID) gallery.Image[ID] {
+func NewImage[ID gallery.ID](id ID) gallery.Image[ID] {
 	return gallery.Image[ID]{
 		ID: id,
 		Image: image.Image{

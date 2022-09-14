@@ -1,0 +1,25 @@
+syntax = "proto3";
+package mediaentity.gallery.v0;
+option go_package = "github.com/modernice/media-entity/api/proto/gen/gallery/v0;gallerypb";
+
+import "mediaentity/image/v0/image.proto";
+
+// Gallery is an image gallery.
+message Gallery {
+	repeated Stack stacks = 1;
+}
+
+// Stack represents an image of a gallery that may have multiple variants of
+// the same image.
+message Stack {
+	string id = 1;
+	repeated Image variants = 2;
+	repeated string tags = 3;
+}
+
+// Image is an image/variant of a stack.
+message Image {
+	mediaentity.image.v0.Image image = 1;
+	string id = 2;
+	bool original = 3;
+}

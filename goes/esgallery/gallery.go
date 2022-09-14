@@ -1,8 +1,6 @@
 package esgallery
 
 import (
-	"fmt"
-
 	"github.com/modernice/goes/aggregate"
 	"github.com/modernice/goes/command"
 	"github.com/modernice/goes/event"
@@ -23,11 +21,8 @@ type Target interface {
 	command.Registerer
 }
 
-// ID is the type constraint for [gallery.Stack]s and [gallery.Image]s of a [*Gallery].
-type ID interface {
-	comparable
-	fmt.Stringer
-}
+// ID is the type constraint for [gallery.Stack]s and [gallery.Image]s of a gallery.
+type ID = gallery.ID
 
 // Gallery provides the core implementation for image galleries. An aggregate
 // that embeds *Gallery implements a ready-to-use image gallery.

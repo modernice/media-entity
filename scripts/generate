@@ -1,0 +1,29 @@
+#!/bin/bash
+set -e
+
+root=$(git rev-parse --show-toplevel)
+
+generate() {
+	local file=$1
+	local name=$(basename $file)
+	local dir=$(dirname $file)
+	local dir_name=$(basename $dir)
+	local relative_dir=${dir#$root/api/proto/mediaentity/}
+	local out_dir=$root/api/proto/gen/$relative_dir
+
+	echo "Generate $file ..."
+
+	mkdir -p $out_dir
+	protoc -I $root/api/proto \
+		--go_out=module=github.com/modernice/media-entity/api/proto/gen/$relative_dir:$out_dir $file \
+		--go-grpc_out=module=github.com/modernice/media-entity/api/proto/gen/$relative_dir:$out_dir $file
+}
+
+proto_files=$(find $root/api/proto -name '*.proto')
+
+echo "Remove old generated files ..."
+rm -rf $root/api/proto/gen/**/*.pb.go
+
+for file in $proto_files; do
+	generate $file
+done

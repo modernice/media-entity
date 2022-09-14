@@ -37,7 +37,7 @@ func NewTestGallery(id uuid.UUID) *TestGallery {
 	return g
 }
 
-func expectStackSorting[StackID, ImageID comparable](t *testing.T, sorting []StackID, stacks []gallery.Stack[StackID, ImageID]) {
+func expectStackSorting[StackID, ImageID gallery.ID](t *testing.T, sorting []StackID, stacks []gallery.Stack[StackID, ImageID]) {
 	if len(sorting) != len(stacks) {
 		t.Fatalf("sorting and stacks should have the same length; sorting has %d, stacks has %d", len(sorting), len(stacks))
 	}

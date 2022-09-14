@@ -22,6 +22,6 @@ func Unequal(t *testing.T, msg string, a, b any, opts ...cmp.Option) {
 }
 
 // EqualImages compares two [gallery.Image]s and fails the test if they are not equal.
-func EqualImages[ID comparable](t *testing.T, msg string, a, b gallery.Image[ID]) {
+func EqualImages[ID gallery.ID](t *testing.T, msg string, a, b gallery.Image[ID]) {
 	Equal(t, msg, a, b)
 }
