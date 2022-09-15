@@ -440,8 +440,8 @@ func (q *processorQueue[Gallery, StackID, ImageID]) work() {
 		switch evt.Name() {
 		case StackAdded:
 			result, err = q.stackAdded(event.Cast[gallery.Stack[StackID, ImageID]](evt))
-		case VariantReplaced:
-			result, shouldPush, err = q.variantReplaced(event.Cast[VariantReplacedData[StackID, ImageID]](evt))
+			// case VariantReplaced:
+			// 	result, shouldPush, err = q.variantReplaced(event.Cast[VariantReplacedData[StackID, ImageID]](evt))
 		}
 
 		if err != nil {
@@ -514,32 +514,32 @@ func (q *processorQueue[Gallery, StackID, ImageID]) stackAdded(evt event.Of[gall
 	return result, nil
 }
 
-func (q *processorQueue[
-	Gallery,
-	StackID, ImageID,
-]) variantReplaced(evt event.Of[VariantReplacedData[StackID, ImageID]]) (
-	zero ProcessorResult[StackID, ImageID],
-	_ bool, _ error,
-) {
-	galleryID := pick.AggregateID(evt)
-	g, err := q.processor.fetchGallery(q.ctx, galleryID)
-	if err != nil {
-		return zero, false, fmt.Errorf("fetch gallery: %w", err)
-	}
+// func (q *processorQueue[
+// 	Gallery,
+// 	StackID, ImageID,
+// ]) variantReplaced(evt event.Of[VariantReplacedData[StackID, ImageID]]) (
+// 	zero ProcessorResult[StackID, ImageID],
+// 	_ bool, _ error,
+// ) {
+// 	galleryID := pick.AggregateID(evt)
+// 	g, err := q.processor.fetchGallery(q.ctx, galleryID)
+// 	if err != nil {
+// 		return zero, false, fmt.Errorf("fetch gallery: %w", err)
+// 	}
 
-	data := evt.Data()
+// 	data := evt.Data()
 
-	if !data.Variant.Original {
-		return zero, false, nil
-	}
+// 	if !data.Variant.Original {
+// 		return zero, false, nil
+// 	}
 
-	result, err := q.processor.processor.Process(q.ctx, q.pipeline, g, data.StackID)
-	if err != nil {
-		return result, false, fmt.Errorf("run processor: %w", err)
-	}
+// 	result, err := q.processor.processor.Process(q.ctx, q.pipeline, g, data.StackID)
+// 	if err != nil {
+// 		return result, false, fmt.Errorf("run processor: %w", err)
+// 	}
 
-	return result, true, nil
-}
+// 	return result, true, nil
+// }
 
 func zeroResult[StackID, ImageID ID]() (zero ProcessorResult[StackID, ImageID]) {
 	return zero

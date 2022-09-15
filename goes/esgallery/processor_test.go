@@ -115,132 +115,132 @@ func TestProcessor_Run_stackAdded(t *testing.T) {
 	testcmp.Equal(t, "result has invalid trigger", trigger, result.Trigger)
 }
 
-func TestProcessor_Run_variantReplaced_original(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// func TestProcessor_Run_variantReplaced_original(t *testing.T) {
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	defer cancel()
 
-	var storage esgallery.MemoryStorage
-	uploader := esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
-	ebus := eventbus.New()
-	estore := eventstore.WithBus(eventstore.New(), ebus)
-	repo := repository.New(estore)
-	galleries := repository.Typed(repo, NewTestGallery)
-	p := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
-	pp := esgallery.NewPostProcessor(p, ebus, galleries.Fetch)
+// 	var storage esgallery.MemoryStorage
+// 	uploader := esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
+// 	ebus := eventbus.New()
+// 	estore := eventstore.WithBus(eventstore.New(), ebus)
+// 	repo := repository.New(estore)
+// 	galleries := repository.Typed(repo, NewTestGallery)
+// 	p := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
+// 	pp := esgallery.NewPostProcessor(p, ebus, galleries.Fetch)
 
-	pipeline := imgtools.Pipeline{
-		imgtools.Resize(imgtools.DimensionMap{
-			"sm": {640},
-			"md": {960},
-			"lg": {1280},
-		}),
-	}
+// 	pipeline := imgtools.Pipeline{
+// 		imgtools.Resize(imgtools.DimensionMap{
+// 			"sm": {640},
+// 			"md": {960},
+// 			"lg": {1280},
+// 		}),
+// 	}
 
-	g := NewTestGallery(uuid.New())
+// 	g := NewTestGallery(uuid.New())
 
-	r := newExample()
-	originalVariant := galleryx.NewImage(uuid.New())
-	stack, _ := g.NewStack(uuid.New(), originalVariant)
+// 	r := newExample()
+// 	originalVariant := galleryx.NewImage(uuid.New())
+// 	stack, _ := g.NewStack(uuid.New(), originalVariant)
 
-	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
-	if err != nil {
-		t.Fatalf("upload original image: %v", err)
-	}
+// 	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
+// 	if err != nil {
+// 		t.Fatalf("upload original image: %v", err)
+// 	}
 
-	if err := galleries.Save(ctx, g); err != nil {
-		t.Fatalf("save gallery: %v", err)
-	}
+// 	if err := galleries.Save(ctx, g); err != nil {
+// 		t.Fatalf("save gallery: %v", err)
+// 	}
 
-	<-time.After(200 * time.Millisecond)
+// 	<-time.After(200 * time.Millisecond)
 
-	results, errs, err := pp.Run(ctx, pipeline)
-	if err != nil {
-		t.Fatalf("run pipeline: %v", err)
-	}
-	go testx.PanicOn(errs)
+// 	results, errs, err := pp.Run(ctx, pipeline)
+// 	if err != nil {
+// 		t.Fatalf("run pipeline: %v", err)
+// 	}
+// 	go testx.PanicOn(errs)
 
-	// Trigger post-processor
-	replacement := stack.Original()
-	if _, err := g.ReplaceVariant(stack.ID, replacement); err != nil {
-		t.Fatalf("replace variant: %v", err)
-	}
-	if err := galleries.Save(ctx, g); err != nil {
-		t.Fatalf("save gallery: %v", err)
-	}
+// 	// Trigger post-processor
+// 	replacement := stack.Original()
+// 	if _, err := g.ReplaceVariant(stack.ID, replacement); err != nil {
+// 		t.Fatalf("replace variant: %v", err)
+// 	}
+// 	if err := galleries.Save(ctx, g); err != nil {
+// 		t.Fatalf("save gallery: %v", err)
+// 	}
 
-	var result esgallery.ProcessorResult[uuid.UUID, uuid.UUID]
-	select {
-	case <-time.After(time.Second):
-		t.Fatalf("timed out waiting for post-processor result")
-	case result = <-results:
-	}
+// 	var result esgallery.ProcessorResult[uuid.UUID, uuid.UUID]
+// 	select {
+// 	case <-time.After(time.Second):
+// 		t.Fatalf("timed out waiting for post-processor result")
+// 	case result = <-results:
+// 	}
 
-	testProcessorResult(t, result, &storage, g, stack)
-}
+// 	testProcessorResult(t, result, &storage, g, stack)
+// }
 
-func TestProcessor_Run_variantReplaced_variant(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// func TestProcessor_Run_variantReplaced_variant(t *testing.T) {
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	defer cancel()
 
-	var storage esgallery.MemoryStorage
-	uploader := esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
-	ebus := eventbus.New()
-	estore := eventstore.WithBus(eventstore.New(), ebus)
-	repo := repository.New(estore)
-	galleries := repository.Typed(repo, NewTestGallery)
-	p := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
-	pp := esgallery.NewPostProcessor(p, ebus, galleries.Fetch)
+// 	var storage esgallery.MemoryStorage
+// 	uploader := esgallery.NewUploader[uuid.UUID, uuid.UUID](&storage)
+// 	ebus := eventbus.New()
+// 	estore := eventstore.WithBus(eventstore.New(), ebus)
+// 	repo := repository.New(estore)
+// 	galleries := repository.Typed(repo, NewTestGallery)
+// 	p := esgallery.NewProcessor(esgallery.DefaultEncoder, &storage, uploader, uuid.New)
+// 	pp := esgallery.NewPostProcessor(p, ebus, galleries.Fetch)
 
-	pipeline := imgtools.Pipeline{
-		imgtools.Resize(imgtools.DimensionMap{
-			"sm": {640},
-			"md": {960},
-			"lg": {1280},
-		}),
-	}
+// 	pipeline := imgtools.Pipeline{
+// 		imgtools.Resize(imgtools.DimensionMap{
+// 			"sm": {640},
+// 			"md": {960},
+// 			"lg": {1280},
+// 		}),
+// 	}
 
-	g := NewTestGallery(uuid.New())
+// 	g := NewTestGallery(uuid.New())
 
-	r := newExample()
-	originalVariant := galleryx.NewImage(uuid.New())
-	stack, _ := g.NewStack(uuid.New(), originalVariant)
+// 	r := newExample()
+// 	originalVariant := galleryx.NewImage(uuid.New())
+// 	stack, _ := g.NewStack(uuid.New(), originalVariant)
 
-	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
-	if err != nil {
-		t.Fatalf("upload original image: %v", err)
-	}
+// 	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
+// 	if err != nil {
+// 		t.Fatalf("upload original image: %v", err)
+// 	}
 
-	variantID := uuid.New()
-	stack, _ = g.NewVariant(stack.ID, variantID, galleryx.NewImage(uuid.New()).Image)
+// 	variantID := uuid.New()
+// 	stack, _ = g.NewVariant(stack.ID, variantID, galleryx.NewImage(uuid.New()).Image)
 
-	if err := galleries.Save(ctx, g); err != nil {
-		t.Fatalf("save gallery: %v", err)
-	}
+// 	if err := galleries.Save(ctx, g); err != nil {
+// 		t.Fatalf("save gallery: %v", err)
+// 	}
 
-	<-time.After(200 * time.Millisecond)
+// 	<-time.After(200 * time.Millisecond)
 
-	results, errs, err := pp.Run(ctx, pipeline)
-	if err != nil {
-		t.Fatalf("run pipeline: %v", err)
-	}
-	go testx.PanicOn(errs)
+// 	results, errs, err := pp.Run(ctx, pipeline)
+// 	if err != nil {
+// 		t.Fatalf("run pipeline: %v", err)
+// 	}
+// 	go testx.PanicOn(errs)
 
-	// Trigger post-processor
-	replacement := stack.Last()
-	if _, err := g.ReplaceVariant(stack.ID, replacement); err != nil {
-		t.Fatalf("replace variant: %v", err)
-	}
-	if err := galleries.Save(ctx, g); err != nil {
-		t.Fatalf("save gallery: %v", err)
-	}
+// 	// Trigger post-processor
+// 	replacement := stack.Last()
+// 	if _, err := g.ReplaceVariant(stack.ID, replacement); err != nil {
+// 		t.Fatalf("replace variant: %v", err)
+// 	}
+// 	if err := galleries.Save(ctx, g); err != nil {
+// 		t.Fatalf("save gallery: %v", err)
+// 	}
 
-	select {
-	case <-time.After(500 * time.Millisecond):
-		return
-	case <-results:
-		t.Fatalf("post-processor should not have triggered")
-	}
-}
+// 	select {
+// 	case <-time.After(500 * time.Millisecond):
+// 		return
+// 	case <-results:
+// 		t.Fatalf("post-processor should not have triggered")
+// 	}
+// }
 
 func TestProcessor_Run_WithAutoApply(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -267,9 +267,8 @@ func TestProcessor_Run_WithAutoApply(t *testing.T) {
 
 	r := newExample()
 	originalVariant := galleryx.NewImage(uuid.New())
-	stack, _ := g.NewStack(uuid.New(), originalVariant)
 
-	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
+	stack, err := uploader.UploadNew(ctx, g, uuid.New(), originalVariant.ID, r, "example.jpg")
 	if err != nil {
 		t.Fatalf("upload original image: %v", err)
 	}
