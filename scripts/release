@@ -43,10 +43,6 @@ if [[ ! -z $TAGS ]]; then
 	exit 1
 fi
 
-tag ""
-tag "goes/"
-tag "api/proto/"
-
 if [[ $@ =~ --?npm ]]; then
 	cd ./packages/media-entity
 	pnpm update-version $VERSION
@@ -54,6 +50,10 @@ if [[ $@ =~ --?npm ]]; then
 	git commit -m "chore: $VERSION"
 	tag "npm/"
 fi
+
+tag ""
+tag "goes/"
+tag "api/proto/"
 
 if [[ $@ =~ --?push ]]; then
 	echo "Pushing main to remote repository ..."
