@@ -19,5 +19,6 @@ jobs:
 
     - name: Test
       run: |
+        go work sync
         go test -v ./...
         go test -v ./goes/esgallery/...
