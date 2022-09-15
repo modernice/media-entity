@@ -2,7 +2,7 @@ import {
   hydrateImage,
   Image as BaseImage,
   type ImageDimensions,
-} from '../image'
+} from '../image.js'
 import { ResponseOf } from '@modernice/typed-response'
 
 /**
