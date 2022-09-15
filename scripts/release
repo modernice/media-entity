@@ -1,5 +1,6 @@
 #!/bin/bash
 
+ROOT=$(git rev-parse --show-toplevel)
 VERSION=$1
 
 usage() {
@@ -49,6 +50,8 @@ tag "api/proto/"
 if [[ $@ =~ --?npm ]]; then
 	cd ./packages/media-entity
 	pnpm update-version $VERSION
+	git add $ROOT
+	git commit -m "chore: $VERSION"
 	tag "npm/"
 fi
 
