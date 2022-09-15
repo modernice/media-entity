@@ -10,6 +10,7 @@ message Image {
 	Dimensions dimensions = 4;
 	map<string, string> names = 5;
 	map<string, string> descriptions = 6;
+	repeated string tags = 7;
 }
 
 // Storage provides the storage information of an image.

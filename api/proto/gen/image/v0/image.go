@@ -3,6 +3,7 @@ package imagepb
 import (
 	"github.com/modernice/media-entity/image"
 	"github.com/modernice/media-entity/internal/mapx"
+	"github.com/modernice/media-entity/internal/slicex"
 )
 
 func New(img image.Image) *Image {
@@ -13,6 +14,7 @@ func New(img image.Image) *Image {
 		Dimensions:   NewDimensions(img.Dimensions),
 		Names:        mapx.Ensure(img.Names),
 		Descriptions: mapx.Ensure(img.Descriptions),
+		Tags:         slicex.Ensure(img.Tags),
 	}
 }
 
@@ -24,6 +26,7 @@ func (img *Image) AsImage() image.Image {
 		Dimensions:   img.GetDimensions().AsDimensions(),
 		Names:        mapx.Ensure(img.GetNames()),
 		Descriptions: mapx.Ensure(img.GetDescriptions()),
+		Tags:         slicex.Ensure(img.GetTags()),
 	}
 }
 
