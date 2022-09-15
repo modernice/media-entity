@@ -38,7 +38,7 @@ func NewStack[StackID, ImageID gallery.ID](s gallery.Stack[StackID, ImageID]) *S
 	return &Stack{
 		Id:       s.ID.String(),
 		Variants: slicex.Map(s.Variants, NewVariant[ImageID]),
-		Tags:     s.Tags,
+		Tags:     slicex.Ensure(s.Tags),
 	}
 }
 

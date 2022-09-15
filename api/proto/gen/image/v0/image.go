@@ -1,6 +1,9 @@
 package imagepb
 
-import "github.com/modernice/media-entity/image"
+import (
+	"github.com/modernice/media-entity/image"
+	"github.com/modernice/media-entity/internal/mapx"
+)
 
 func New(img image.Image) *Image {
 	return &Image{
@@ -8,8 +11,8 @@ func New(img image.Image) *Image {
 		Filename:     img.Filename,
 		Filesize:     int64(img.Filesize),
 		Dimensions:   NewDimensions(img.Dimensions),
-		Names:        img.Names,
-		Descriptions: img.Descriptions,
+		Names:        mapx.Ensure(img.Names),
+		Descriptions: mapx.Ensure(img.Descriptions),
 	}
 }
 
@@ -19,8 +22,8 @@ func (img *Image) AsImage() image.Image {
 		Filename:     img.GetFilename(),
 		Filesize:     int(img.GetFilesize()),
 		Dimensions:   img.GetDimensions().AsDimensions(),
-		Names:        img.GetNames(),
-		Descriptions: img.GetDescriptions(),
+		Names:        mapx.Ensure(img.GetNames()),
+		Descriptions: mapx.Ensure(img.GetDescriptions()),
 	}
 }
 

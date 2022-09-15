@@ -41,3 +41,11 @@ func Copy[S ~[]E, E any](s S) S {
 	}
 	return out
 }
+
+// Ensure returns the slice s if it is non-nil. Otherwise it returns a new initialized slice.
+func Ensure[S ~[]E, E any](s S) S {
+	if s == nil {
+		return make(S, 0)
+	}
+	return s
+}
