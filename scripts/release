@@ -1,0 +1,60 @@
+#!/bin/bash
+
+VERSION=$1
+
+usage() {
+	echo "Release script for the media-entity monorepo."
+	echo "This script will create git tags for these Go packages:"
+	echo
+	echo -e "\tgithub.com/modernice/media-entity – v1.2.3"
+	echo -e "\tgithub.com/modernice/media-entity/goes – goes/v1.2.3"
+	echo -e "\tgithub.com/modernice/media-entity/api/proto – api/proto/v1.2.3"
+	echo
+	echo "The '-npm' option will also create a git tag for the"
+	echo "@modernice/media-entity npm package: npm/v1.2.3"
+	echo
+	echo "Usage: $0 v1.2.3"
+	echo
+	echo "Options:"
+	echo -e "\t-npm\tAlso release npm package under the same version"
+	echo -e "\t-push\tPush tags to remote repository"
+}
+
+if [[ -z $VERSION ]]; then
+	usage
+	exit 1
+fi
+
+CREATED_TAGS=()
+
+tag() {
+	local prefix=$1
+	echo "Creating tag $prefix$VERSION"
+	git tag "$prefix$VERSION"
+
+	CREATED_TAGS+=("$prefix$VERSION")
+}
+
+TAGS=$(git tag --list "$VERSION")
+
+if [[ ! -z $TAGS ]]; then
+	echo "Tag $VERSION already exists. Aborting."
+	exit 1
+fi
+
+tag ""
+tag "goes/"
+tag "api/proto/"
+
+if [[ $@ =~ --?npm ]]; then
+	tag "npm/"
+fi
+
+if [[ $@ =~ --?push ]]; then
+	echo "Pushing tags to remote repository ..."
+
+	for tag in "${CREATED_TAGS[@]}"; do
+		echo "Push $tag ..."
+		git push origin $tag
+	done
+fi
