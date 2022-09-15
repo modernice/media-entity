@@ -4,6 +4,7 @@
   "description": "media-entity types",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
