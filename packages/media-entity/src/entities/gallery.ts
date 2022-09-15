@@ -77,3 +77,17 @@ export function wasProcessed<Languages extends string = string>(
 ) {
   return stack.tags.includes('processed')
 }
+
+/**
+ * Returns the original {@link Image} of a {@link Stack}.
+ */
+export function getOriginalVariant<Languages extends string = string>(
+  stack: Stack<Languages>
+) {
+  for (const variant of stack.variants) {
+    if (variant.original) {
+      return variant
+    }
+  }
+  return null
+}
