@@ -48,6 +48,7 @@ func AsStack[StackID, ImageID gallery.ID](s *Stack, toStackID func(string) Stack
 		Variants: slicex.Map(s.GetVariants(), func(img *Image) gallery.Image[ImageID] {
 			return AsImage(img, toImageID)
 		}),
+		Tags: slicex.Ensure(s.GetTags()),
 	}
 }
 
