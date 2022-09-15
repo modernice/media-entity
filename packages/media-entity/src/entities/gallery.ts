@@ -68,3 +68,12 @@ export function hydrateStackImage<Languages extends string = string>(
     ...hydrateImage(data),
   }
 }
+
+/**
+ * Returns whether the given {@link Stack} was processed by a post-processor.
+ */
+export function wasProcessed<Languages extends string = string>(
+  stack: Stack<Languages>
+) {
+  return stack.tags.includes('processed')
+}

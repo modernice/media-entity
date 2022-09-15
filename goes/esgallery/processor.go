@@ -19,6 +19,9 @@ import (
 	"github.com/modernice/media-tools/image"
 )
 
+// ProcessedTag is added to [Stack]s that were processed by a [*PostProcessor].
+const ProcessedTag = "processed"
+
 // Processor post-processes [gallery.Stack]s and uploads the processed images
 // to (cloud) storage.
 type Processor[StackID, ImageID ID] struct {
@@ -83,6 +86,14 @@ type ProcessableGallery[StackID, ImageID ID] interface {
 
 	// AddVariant adds a new variant to a [gallery.Stack].
 	AddVariant(StackID, gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error)
+
+	// Tag adds tags to a [gallery.Stack].
+	Tag(StackID, ...string) (gallery.Stack[StackID, ImageID], error)
+}
+
+// WasProcessed returns whether the given [gallery.Stack] was processed by a [*PostProcessor].
+func WasProcessed[StackID, ImageID gallery.ID](s gallery.Stack[StackID, ImageID]) bool {
+	return s.Tags.Contains(ProcessedTag)
 }
 
 // ApplyResultOption is an option for [ProcessorResult.Apply].
@@ -119,17 +130,18 @@ func (r ProcessorResult[StackID, ImageID]) Apply(g ProcessableGallery[StackID, I
 	}
 
 	for _, processed := range r.Images {
-		// Variant already exists, so we replace it.
 		if _, ok := stack.Variant(processed.Image.ID); ok {
+			// Variant already exists, so we replace it.
 			if _, err := g.ReplaceVariant(r.StackID, processed.Image); err != nil {
 				return fmt.Errorf("replace variant %q: %w", processed.Image.ID, err)
 			}
-			continue
+		} else if _, err := g.AddVariant(r.StackID, processed.Image); err != nil {
+			// Variant does not exist, so we add it.
+			return fmt.Errorf("add variant: %w", err)
 		}
 
-		// Variant does not exist, so we add it.
-		if _, err := g.AddVariant(r.StackID, processed.Image); err != nil {
-			return fmt.Errorf("add variant: %w", err)
+		if _, err := g.Tag(stack.ID, ProcessedTag); err != nil {
+			return fmt.Errorf("tag stack as processed: %w", err)
 		}
 	}
 

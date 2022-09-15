@@ -41,6 +41,10 @@ func TestProcessor_Process(t *testing.T) {
 	originalVariant := galleryx.NewImage(uuid.New())
 	stack, _ := g.NewStack(uuid.New(), originalVariant)
 
+	if esgallery.WasProcessed(stack) {
+		t.Fatalf("WasProcessed() with fresh Stack should return false")
+	}
+
 	_, err := uploader.UploadVariant(ctx, g, stack.ID, originalVariant.ID, r)
 	if err != nil {
 		t.Fatalf("upload original image: %v", err)
@@ -391,6 +395,15 @@ func testProcessorResult(
 
 	if err := result.Apply(g); err != nil {
 		t.Fatalf("apply result: %v", err)
+	}
+
+	gstack, ok := g.Stack(stack.ID)
+	if !ok {
+		t.Fatalf("stack %s not found in gallery", stack.ID)
+	}
+
+	if !esgallery.WasProcessed(gstack) {
+		t.Fatalf("stack %s should have been processed", stack.ID)
 	}
 
 	test.Change(t, g, esgallery.VariantReplaced, test.EventData(esgallery.VariantReplacedData[uuid.UUID, uuid.UUID]{
