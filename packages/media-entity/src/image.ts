@@ -33,6 +33,8 @@ export interface Image<Languages extends string = string> {
    * Localized descriptions of the image.
    */
   descriptions: { [lang in Languages]?: string }
+
+  tags: string[]
 }
 
 /**
