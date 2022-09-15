@@ -1,5 +1,4 @@
 *.out
-go.work
 .DS_Store
 **/node_modules
 **/dist
