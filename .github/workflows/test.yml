@@ -18,7 +18,4 @@ jobs:
         go-version: 1.19
 
     - name: Test
-      run: |
-        go work sync
-        go test -v ./...
-        go test -v ./goes/esgallery/...
+      run: make test
