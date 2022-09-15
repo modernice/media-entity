@@ -25,6 +25,7 @@ func NewImage[ID gallery.ID](id ID) gallery.Image[ID] {
 				"en": "An image of Foo",
 				"de": "Ein Bild von Foo",
 			},
+			Tags: image.NewTags(),
 		},
 	}
 }

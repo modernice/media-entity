@@ -246,6 +246,9 @@ func (p *Processor[StackID, ImageID]) Process(
 		// Mark the image in the gallery as the original, if it is the original image.
 		uploaded.Original = pimg.Original
 
+		// Add the pipeline tags to the image.
+		uploaded.Tags = uploaded.Tags.With(pimg.Tags...)
+
 		processed[i] = ProcessedImage[ImageID]{
 			Image:     uploaded,
 			Processed: pimg,

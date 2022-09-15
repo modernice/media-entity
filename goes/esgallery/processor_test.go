@@ -113,6 +113,21 @@ func TestProcessor_Run_stackAdded(t *testing.T) {
 	testProcessorResult(t, result, &storage, g, stack)
 
 	testcmp.Equal(t, "result has invalid trigger", trigger, result.Trigger)
+
+	name := imgtools.DimensionName(result.Images[1].Image.Tags)
+	if name != "sm" {
+		t.Fatalf("result image has invalid dimension name; want %q; got %q", "sm", name)
+	}
+
+	name = imgtools.DimensionName(result.Images[2].Image.Tags)
+	if name != "md" {
+		t.Fatalf("result image has invalid dimension name; want %q; got %q", "md", name)
+	}
+
+	name = imgtools.DimensionName(result.Images[3].Image.Tags)
+	if name != "lg" {
+		t.Fatalf("result image has invalid dimension name; want %q; got %q", "lg", name)
+	}
 }
 
 // func TestProcessor_Run_variantReplaced_original(t *testing.T) {
