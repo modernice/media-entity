@@ -1,6 +1,6 @@
 {
   "name": "@modernice/media-entity",
-  "version": "v0.0.8",
+  "version": "v0.0.9",
   "description": "media-entity types",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
