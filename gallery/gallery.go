@@ -43,6 +43,17 @@ type DTO[StackID, ImageID ID] struct {
 	Stacks []Stack[StackID, ImageID] `json:"stacks"`
 }
 
+// Stack returns the [Stack] with the given id, or false if no the gallery does
+// not contain a [Stack] with the id.
+func (dto DTO[StackID, ImageID]) Stack(id StackID) (Stack[StackID, ImageID], bool) {
+	for _, stack := range dto.Stacks {
+		if stack.ID == id {
+			return stack, true
+		}
+	}
+	return zeroStack[StackID, ImageID](), false
+}
+
 // New returns a new gallery [*Base] that can be embedded into structs build
 // galleries. The ID type of the gallery's stacks is specified by the StackID
 // type parameter.
@@ -56,17 +67,6 @@ type DTO[StackID, ImageID ID] struct {
 //	}
 func New[StackID, ImageID ID]() *Base[StackID, ImageID] {
 	return &Base[StackID, ImageID]{}
-}
-
-// Stack returns the [Stack] with the given id, or false if no the gallery does
-// not contain a [Stack] with the id.
-func (g *Base[StackID, ImageID]) Stack(id StackID) (Stack[StackID, ImageID], bool) {
-	for _, stack := range g.Stacks {
-		if stack.ID == id {
-			return stack, true
-		}
-	}
-	return zeroStack[StackID, ImageID](), false
 }
 
 // NewStack adds a new [Stack] to the gallery. The provided [Image] will
