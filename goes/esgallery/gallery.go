@@ -72,6 +72,7 @@ func New[StackID, ImageID ID, T Target](target T) *Gallery[StackID, ImageID, T] 
 	event.ApplyWith(target, g.tag, StackTagged)
 	event.ApplyWith(target, g.untag, StackUntagged)
 	event.ApplyWith(target, g.sort, Sorted)
+	event.ApplyWith(target, g.clear, Cleared)
 
 	command.ApplyWith(target, func(load addStack[StackID, ImageID]) error {
 		_, err := g.NewStack(load.StackID, load.Image)
@@ -112,6 +113,11 @@ func New[StackID, ImageID ID, T Target](target T) *Gallery[StackID, ImageID, T] 
 		g.Sort(sorting)
 		return nil
 	}, SortCmd)
+
+	command.ApplyWith(target, func(struct{}) error {
+		g.Clear()
+		return nil
+	}, ClearCmd)
 
 	return g
 }
@@ -360,4 +366,15 @@ func (g *Gallery[StackID, ImageID, Target]) Sort(sorting []StackID) {
 
 func (g *Gallery[StackID, ImageID, Target]) sort(evt event.Of[[]StackID]) {
 	g.Base.Sort(evt.Data())
+}
+
+func (g *Gallery[StackID, ImageID, T]) Clear() {
+	if len(g.Stacks) == 0 {
+		return
+	}
+	aggregate.Next(g.target, Cleared, struct{}{})
+}
+
+func (g *Gallery[StackID, ImageID, T]) clear(event.Of[struct{}]) {
+	g.Base.Clear()
 }

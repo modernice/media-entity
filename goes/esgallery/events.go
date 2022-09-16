@@ -16,6 +16,7 @@ const (
 	StackTagged     = "esgallery.stack_tagged"
 	StackUntagged   = "esgallery.stack_untagged"
 	Sorted          = "esgallery.sorted"
+	Cleared         = "esgallery.cleared"
 )
 
 // ProcessorTriggerEvents are the events that can trigger a [*Processor].
@@ -60,4 +61,5 @@ func RegisterEvents[StackID, ImageID ID](r codec.Registerer) {
 	codec.Register[StackTaggedData[StackID]](r, StackTagged)
 	codec.Register[StackUntaggedData[StackID]](r, StackUntagged)
 	codec.Register[[]StackID](r, Sorted)
+	codec.Register[struct{}](r, Cleared)
 }

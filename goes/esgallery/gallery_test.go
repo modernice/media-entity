@@ -255,3 +255,19 @@ func TestGallery_Sort(t *testing.T) {
 
 	test.Change(t, g, esgallery.Sorted, test.EventData(sorting))
 }
+
+func TestGallery_Clear(t *testing.T) {
+	g := NewTestGallery(uuid.New())
+
+	for i := 0; i < 10; i++ {
+		g.NewStack(uuid.New(), galleryx.NewImage(uuid.New()))
+	}
+
+	g.Clear()
+
+	if len(g.Stacks) != 0 {
+		t.Fatalf("cleared gallery should have 0 stacks; has %d", len(g.Stacks))
+	}
+
+	test.Change(t, g, esgallery.Cleared)
+}

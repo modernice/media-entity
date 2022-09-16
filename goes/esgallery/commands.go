@@ -14,15 +14,16 @@ import (
 
 // Gallery commands
 const (
-	AddStackCmd       = "goes.gallery.add_stack"
-	RemoveStackCmd    = "goes.gallery.remove_stack"
-	ClearStackCmd     = "goes.gallery.clear_stack"
-	AddVariantCmd     = "goes.gallery.add_variant"
-	RemoveVariantCmd  = "goes.gallery.remove_variant"
-	ReplaceVariantCmd = "goes.gallery.replace_variant"
-	TagStackCmd       = "goes.gallery.tag_stack"
-	UntagStackCmd     = "goes.gallery.untag_stack"
-	SortCmd           = "goes.gallery.sort"
+	AddStackCmd       = "esgallery.add_stack"
+	RemoveStackCmd    = "esgallery.remove_stack"
+	ClearStackCmd     = "esgallery.clear_stack"
+	AddVariantCmd     = "esgallery.add_variant"
+	RemoveVariantCmd  = "esgallery.remove_variant"
+	ReplaceVariantCmd = "esgallery.replace_variant"
+	TagStackCmd       = "esgallery.tag_stack"
+	UntagStackCmd     = "esgallery.untag_stack"
+	SortCmd           = "esgallery.sort"
+	ClearCmd          = "esgallery.clear"
 )
 
 // Commands is a factory for [Gallery] commands.
@@ -115,6 +116,11 @@ func (c *Commands[StackID, _]) Sort(galleryID uuid.UUID, sorting []StackID) comm
 	return command.New(SortCmd, sorting, command.Aggregate(c.aggregateName, galleryID))
 }
 
+// Clear returns the command to clear the [gallery.Stack]s of a [*Gallery].
+func (c *Commands[StackID, ImageID]) Clear(galleryID uuid.UUID) command.Cmd[struct{}] {
+	return command.New(ClearCmd, struct{}{}, command.Aggregate(c.aggregateName, galleryID))
+}
+
 // Register calls RegisterCommands(r).
 func (c *Commands[StackID, ImageID]) Register(r codec.Registerer) {
 	RegisterCommands[StackID, ImageID](r)
@@ -143,4 +149,5 @@ func RegisterCommands[StackID, ImageID ID](r codec.Registerer) {
 	codec.Register[tagStack[StackID]](r, TagStackCmd)
 	codec.Register[untagStack[StackID]](r, UntagStackCmd)
 	codec.Register[[]StackID](r, SortCmd)
+	codec.Register[struct{}](r, ClearCmd)
 }

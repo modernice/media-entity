@@ -260,6 +260,11 @@ func (g *Base[StackID, ImageID]) Sort(sorting []StackID) {
 	})
 }
 
+// Clear removes all stacks from the gallery.
+func (g *Base[StackID, ImageID]) Clear() {
+	g.Stacks = make([]Stack[StackID, ImageID], 0)
+}
+
 // DryRun executes the given function and returns the error that is returned by
 // that function. Any changes made to the gallery's stacks are reverted before
 // returning.
