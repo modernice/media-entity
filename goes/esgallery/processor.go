@@ -120,7 +120,7 @@ func (r ProcessorResult[StackID, ImageID]) Apply(g ProcessableGallery[StackID, I
 
 	stack, ok := g.Stack(r.StackID)
 	if !ok {
-		return fmt.Errorf("stack %q: %w", r.StackID, gallery.ErrStackNotFound)
+		return fmt.Errorf("%w [stackId=%s]", gallery.ErrStackNotFound, r.StackID)
 	}
 
 	if cfg.clearStack {
@@ -190,7 +190,7 @@ func (p *Processor[StackID, ImageID]) Process(
 ) (ProcessorResult[StackID, ImageID], error) {
 	stack, ok := g.Stack(stackID)
 	if !ok {
-		return zeroResult[StackID, ImageID](), gallery.ErrStackNotFound
+		return zeroResult[StackID, ImageID](), fmt.Errorf("%w [stackId=%s]", gallery.ErrStackNotFound, stackID)
 	}
 
 	original := stack.Original()
