@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/modernice/goes/aggregate"
@@ -20,7 +21,7 @@ import (
 	"github.com/modernice/media-tools/image"
 )
 
-// ProcessedTag is added to [Stack]s that were processed by a [*PostProcessor].
+// ProcessedTag is added to [gallery.Stack]s that were processed by a [*PostProcessor].
 const ProcessedTag = "processed"
 
 // Processor post-processes [gallery.Stack]s and uploads the processed images
@@ -42,11 +43,14 @@ type ProcessorResult[StackID, ImageID ID] struct {
 	// was called manually, Trigger is nil.
 	Trigger event.Event
 
-	// StackID is the ID of processed [Stack].
+	// StackID is the ID of processed [gallery.Stack].
 	StackID StackID
 
 	// Images are the processed images.
 	Images []ProcessedImage[ImageID]
+
+	// Runtime is the time it took to process the [gallery.Stack].
+	Runtime time.Duration
 
 	// Applied is set to true if the post-processor applied the result to the
 	// gallery. This is the case if the [WithAutoApply] option is enabled.
@@ -454,6 +458,7 @@ func (q *processorQueue[Gallery, StackID, ImageID]) work() {
 			result     ProcessorResult[StackID, ImageID]
 			err        error
 			shouldPush = true
+			start      = time.Now()
 		)
 
 		q.cfg.debugLog("handling %q event ...", evt.Name())
@@ -471,12 +476,14 @@ func (q *processorQueue[Gallery, StackID, ImageID]) work() {
 		}
 
 		result.Trigger = evt
+		result.Runtime = time.Since(start)
 
 		galleryID := pick.AggregateID(evt)
 
 		if q.processor.autoApply {
 			if err := q.apply(&result, galleryID); err != nil {
 				q.fail(fmt.Errorf("apply result: %w", err))
+				continue
 			}
 		}
 
@@ -486,6 +493,8 @@ func (q *processorQueue[Gallery, StackID, ImageID]) work() {
 		}
 
 		if shouldPush {
+			// Update the Runtime because q.apply() might have taken some time.
+			result.Runtime = time.Since(start)
 			q.push(result)
 		}
 	}
