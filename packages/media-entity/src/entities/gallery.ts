@@ -41,7 +41,7 @@ export function hydrateGallery<Languages extends string = string>(
 ): Gallery<Languages> {
   return {
     ...data,
-    stacks: data.stacks.map((data) => hydrateStack(data)),
+    stacks: (data.stacks || []).map((data) => hydrateStack(data)),
   }
 }
 
@@ -53,7 +53,8 @@ export function hydrateStack<Languages extends string = string>(
 ): Stack<Languages> {
   return {
     ...data,
-    variants: data.variants.map(hydrateStackImage),
+    variants: (data.variants || []).map(hydrateStackImage),
+    tags: data.tags || [],
   }
 }
 
