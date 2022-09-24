@@ -38,16 +38,16 @@ func NewStack[StackID, ImageID gallery.ID](s gallery.Stack[StackID, ImageID]) *S
 	return &Stack{
 		Id:       s.ID.String(),
 		Variants: slicex.Map(s.Variants, NewVariant[ImageID]),
-		Tags:     slicex.Ensure(s.Tags),
+		Tags:     s.Tags,
 	}
 }
 
 func AsStack[StackID, ImageID gallery.ID](s *Stack, toStackID func(string) StackID, toImageID func(string) ImageID) gallery.Stack[StackID, ImageID] {
 	return gallery.Stack[StackID, ImageID]{
 		ID: toStackID(s.GetId()),
-		Variants: slicex.Map(s.GetVariants(), func(img *Image) gallery.Image[ImageID] {
+		Variants: slicex.Ensure(slicex.Map(s.GetVariants(), func(img *Image) gallery.Image[ImageID] {
 			return AsImage(img, toImageID)
-		}),
+		})),
 		Tags: slicex.Ensure(s.GetTags()),
 	}
 }
