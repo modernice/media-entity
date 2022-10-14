@@ -19,6 +19,7 @@ import (
 	"github.com/modernice/goes/helper/streams"
 	"github.com/modernice/media-entity/gallery"
 	"github.com/modernice/media-tools/image"
+	"golang.org/x/exp/slices"
 )
 
 // ProcessedTag is added to [gallery.Stack]s that were processed by a [*PostProcessor].
@@ -352,6 +353,7 @@ type runProcessorConfig struct {
 	workers        int
 	discardResults bool
 	debug          bool
+	eventFilters   []func(event.Event) bool
 }
 
 // Workers returns a [RunProcessorOption] that sets the number of workers for
@@ -379,6 +381,27 @@ func Debug(debug bool) RunProcessorOption {
 	return func(cfg *runProcessorConfig) {
 		cfg.debug = debug
 	}
+}
+
+// FilterEvents returns a [PostProcessorOption] that calls the provided filter
+// function when receiving a [ProcessorTriggerEvents] event. If the filter
+// returns false, the post-processor will not be triggered for that event.
+// When multiple filters are provided, all filters must return true for the
+// post-processor to be triggered.
+func FilterEvents(filter func(event.Event) bool) RunProcessorOption {
+	return func(cfg *runProcessorConfig) {
+		cfg.eventFilters = append(cfg.eventFilters, filter)
+	}
+}
+
+// FilterAggregates returns a [PostProcessorOption] that checks if a received
+// [ProcessorTriggerEvents] event belongs to the event stream of one of the
+// provided aggregates. If the event does not belong to any of these aggregates,
+// the post-processor will not be triggered for that event.
+func FilterAggregates(aggregates []string) RunProcessorOption {
+	return FilterEvents(func(e event.Event) bool {
+		return slices.Contains(aggregates, pick.AggregateName(e))
+	})
 }
 
 // Run runs the post-processor in the background and returns a channel of
@@ -454,6 +477,10 @@ func (q *processorQueue[Gallery, StackID, ImageID]) run() {
 
 func (q *processorQueue[Gallery, StackID, ImageID]) work() {
 	for evt := range q.events {
+		if !q.shouldProcess(evt) {
+			continue
+		}
+
 		var (
 			result     ProcessorResult[StackID, ImageID]
 			err        error
@@ -498,6 +525,15 @@ func (q *processorQueue[Gallery, StackID, ImageID]) work() {
 			q.push(result)
 		}
 	}
+}
+
+func (q *processorQueue[Gallery, StackID, ImageID]) shouldProcess(evt event.Event) bool {
+	for _, filter := range q.cfg.eventFilters {
+		if !filter(evt) {
+			return false
+		}
+	}
+	return true
 }
 
 func (q *processorQueue[Gallery, StackID, ImageID]) apply(result *ProcessorResult[StackID, ImageID], galleryID uuid.UUID) error {
