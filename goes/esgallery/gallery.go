@@ -88,7 +88,7 @@ func New[StackID, ImageID ID, T Target](target T) *Gallery[StackID, ImageID, T] 
 	command.ApplyWith(target, func(load addVariants[StackID, ImageID]) error {
 		_, err := g.NewVariants(load.StackID, load.Variants)
 		return err
-	}, AddVariantCmd)
+	}, AddVariantsCmd)
 
 	command.ApplyWith(target, func(load addVariant[StackID, ImageID]) error {
 		_, err := g.NewVariant(load.StackID, load.VariantID, load.Image)

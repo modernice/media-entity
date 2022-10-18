@@ -58,7 +58,7 @@ type removeStack[StackID ID] struct {
 
 // AddVariants returns the command to add a multiple [Variant]s to a [gallery.Stack] in a [*Gallery].
 func (c *Commands[StackID, ImageID]) AddVariants(galleryID uuid.UUID, stackID StackID, variants []VariantToAdd[ImageID]) command.Cmd[addVariants[StackID, ImageID]] {
-	return command.New(AddVariantCmd, addVariants[StackID, ImageID]{stackID, variants}, command.Aggregate(c.aggregateName, galleryID))
+	return command.New(AddVariantsCmd, addVariants[StackID, ImageID]{stackID, variants}, command.Aggregate(c.aggregateName, galleryID))
 }
 
 type VariantToAdd[ImageID ID] struct {
