@@ -17,6 +17,7 @@ const (
 	AddStackCmd       = "esgallery.add_stack"
 	RemoveStackCmd    = "esgallery.remove_stack"
 	ClearStackCmd     = "esgallery.clear_stack"
+	AddVariantsCmd    = "esgallery.add_variants"
 	AddVariantCmd     = "esgallery.add_variant"
 	RemoveVariantCmd  = "esgallery.remove_variant"
 	ReplaceVariantCmd = "esgallery.replace_variant"
@@ -55,20 +56,34 @@ type removeStack[StackID ID] struct {
 	StackID StackID
 }
 
+// AddVariants returns the command to add a multiple [Variant]s to a [gallery.Stack] in a [*Gallery].
+func (c *Commands[StackID, ImageID]) AddVariants(galleryID uuid.UUID, stackID StackID, variants []VariantToAdd[ImageID]) command.Cmd[addVariants[StackID, ImageID]] {
+	return command.New(AddVariantCmd, addVariants[StackID, ImageID]{stackID, variants}, command.Aggregate(c.aggregateName, galleryID))
+}
+
+type VariantToAdd[ImageID ID] struct {
+	VariantID ImageID
+	Image     image.Image
+}
+
+type addVariants[StackID, ImageID ID] struct {
+	StackID  StackID
+	Variants []VariantToAdd[ImageID]
+}
+
 // AddVariant returns the command to add a new [Variant] to a [gallery.Stack] in a [*Gallery].
 func (c *Commands[StackID, ImageID]) AddVariant(galleryID uuid.UUID, stackID StackID, variantID ImageID, img image.Image) command.Cmd[addVariant[StackID, ImageID]] {
-	return command.New(AddVariantCmd, addVariant[StackID, ImageID]{stackID, variantID, img}, command.Aggregate(c.aggregateName, galleryID))
+	return command.New(AddVariantCmd, addVariant[StackID, ImageID]{stackID, VariantToAdd[ImageID]{variantID, img}}, command.Aggregate(c.aggregateName, galleryID))
+}
+
+type addVariant[StackID, ImageID ID] struct {
+	StackID StackID
+	VariantToAdd[ImageID]
 }
 
 // ClearStack returns the command to clear the variants of a [gallery.Stack].
 func (c *Commands[StackID, ImageID]) ClearStack(galleryID uuid.UUID, stackID StackID) command.Cmd[StackID] {
 	return command.New(ClearStackCmd, stackID, command.Aggregate(c.aggregateName, galleryID))
-}
-
-type addVariant[StackID, ImageID ID] struct {
-	StackID   StackID
-	VariantID ImageID
-	Image     image.Image
 }
 
 // RemoveVariant returns the command to remove a [Variant] from a [gallery.Stack] in a [*Gallery].
@@ -143,6 +158,7 @@ func RegisterCommands[StackID, ImageID ID](r codec.Registerer) {
 	codec.Register[addStack[StackID, ImageID]](r, AddStackCmd)
 	codec.Register[removeStack[StackID]](r, RemoveStackCmd)
 	codec.Register[StackID](r, ClearStackCmd)
+	codec.Register[addVariants[StackID, ImageID]](r, AddVariantsCmd)
 	codec.Register[addVariant[StackID, ImageID]](r, AddVariantCmd)
 	codec.Register[removeVariant[StackID, ImageID]](r, RemoveVariantCmd)
 	codec.Register[replaceVariant[StackID, ImageID]](r, ReplaceVariantCmd)

@@ -66,6 +66,7 @@ func New[StackID, ImageID ID, T Target](target T) *Gallery[StackID, ImageID, T] 
 	event.ApplyWith(target, g.newStack, StackAdded)
 	event.ApplyWith(target, g.removeStack, StackRemoved)
 	event.ApplyWith(target, g.clearStack, StackCleared)
+	event.ApplyWith(target, g.addVariants, VariantsAdded)
 	event.ApplyWith(target, g.addVariant, VariantAdded)
 	event.ApplyWith(target, g.removeVariant, VariantRemoved)
 	event.ApplyWith(target, g.replaceVariant, VariantReplaced)
@@ -83,6 +84,11 @@ func New[StackID, ImageID ID, T Target](target T) *Gallery[StackID, ImageID, T] 
 		_, err := g.RemoveStack(load.StackID)
 		return err
 	}, RemoveStackCmd)
+
+	command.ApplyWith(target, func(load addVariants[StackID, ImageID]) error {
+		_, err := g.NewVariants(load.StackID, load.Variants)
+		return err
+	}, AddVariantCmd)
 
 	command.ApplyWith(target, func(load addVariant[StackID, ImageID]) error {
 		_, err := g.NewVariant(load.StackID, load.VariantID, load.Image)
@@ -199,6 +205,32 @@ func (g *Gallery[StackID, ImageID, T]) clearStack(evt event.Of[StackID]) {
 	}
 }
 
+func (g *Gallery[StackID, ImageID, Target]) NewVariants(stackID StackID, variants []VariantToAdd[ImageID]) (gallery.Stack[StackID, ImageID], error) {
+	var stack gallery.Stack[StackID, ImageID]
+	var added []gallery.Image[ImageID]
+	if err := g.DryRun(func(g *gallery.Base[StackID, ImageID]) error {
+		var err error
+		for _, variant := range variants {
+			if stack, err = g.NewVariant(stackID, variant.VariantID, variant.Image); err != nil {
+				return err
+			}
+			if v, ok := stack.Variant(variant.VariantID); ok {
+				added = append(added, v)
+			}
+		}
+		return nil
+	}); err != nil {
+		return stack, err
+	}
+
+	aggregate.Next(g.target, VariantsAdded, VariantsAddedData[StackID, ImageID]{
+		StackID:  stackID,
+		Variants: added,
+	})
+
+	return stack, nil
+}
+
 // NewVariant is the event-sourced variant of [*gallery.Base.NewVariant].
 func (g *Gallery[StackID, ImageID, Target]) NewVariant(stackID StackID, variantID ImageID, img image.Image) (gallery.Stack[StackID, ImageID], error) {
 	var stack gallery.Stack[StackID, ImageID]
@@ -216,6 +248,41 @@ func (g *Gallery[StackID, ImageID, Target]) NewVariant(stackID StackID, variantI
 	})
 
 	return stack, nil
+}
+
+// AddVariant adds multiple variants to a [gallery.Stack]. Read the
+// documentation of g.AddVariant for more information.
+func (g *Gallery[StackID, ImageID, Target]) AddVariants(stackID StackID, variants []gallery.Image[ImageID]) (gallery.Stack[StackID, ImageID], error) {
+	stack, ok := g.Stack(stackID)
+	if !ok {
+		return gallery.ZeroStack[StackID, ImageID](), gallery.ErrStackNotFound
+	}
+
+	var zeroID ImageID
+
+	for _, variant := range variants {
+		if variant.ID == zeroID {
+			return gallery.ZeroStack[StackID, ImageID](), gallery.ErrEmptyID
+		}
+
+		if _, ok := stack.Variant(variant.ID); ok {
+			return gallery.ZeroStack[StackID, ImageID](), gallery.ErrDuplicateID
+		}
+	}
+
+	aggregate.Next(g.target, VariantsAdded, VariantsAddedData[StackID, ImageID]{
+		StackID:  stackID,
+		Variants: variants,
+	})
+
+	return stack, nil
+}
+
+func (g *Gallery[StackID, ImageID, Target]) addVariants(evt event.Of[VariantsAddedData[StackID, ImageID]]) {
+	data := evt.Data()
+	for _, variant := range data.Variants {
+		g.Base.NewVariant(data.StackID, variant.ID, variant.Image)
+	}
 }
 
 // AddVariant adds a variant to a [gallery.Stack]. If the [gallery.Stack] cannot

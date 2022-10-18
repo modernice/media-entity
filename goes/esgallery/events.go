@@ -10,6 +10,7 @@ const (
 	StackAdded      = "esgallery.stack_added"
 	StackRemoved    = "esgallery.stack_removed"
 	StackCleared    = "esgallery.stack_cleared"
+	VariantsAdded   = "esgallery.variants_added"
 	VariantAdded    = "esgallery.variant_added"
 	VariantRemoved  = "esgallery.variant_removed"
 	VariantReplaced = "esgallery.variant_replaced"
@@ -23,6 +24,11 @@ const (
 var ProcessorTriggerEvents = []string{
 	StackAdded,
 	// VariantReplaced,
+}
+
+type VariantsAddedData[StackID, ImageID ID] struct {
+	StackID  StackID
+	Variants []gallery.Image[ImageID]
 }
 
 type VariantAddedData[StackID, ImageID ID] struct {
@@ -55,6 +61,7 @@ func RegisterEvents[StackID, ImageID ID](r codec.Registerer) {
 	codec.Register[gallery.Stack[StackID, ImageID]](r, StackAdded)
 	codec.Register[StackID](r, StackRemoved)
 	codec.Register[StackID](r, StackCleared)
+	codec.Register[VariantsAddedData[StackID, ImageID]](r, VariantsAdded)
 	codec.Register[VariantAddedData[StackID, ImageID]](r, VariantAdded)
 	codec.Register[VariantRemovedData[StackID, ImageID]](r, VariantRemoved)
 	codec.Register[VariantReplacedData[StackID, ImageID]](r, VariantReplaced)
