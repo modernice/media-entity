@@ -9,7 +9,6 @@ import (
 	"github.com/modernice/goes/command"
 	"github.com/modernice/goes/command/handler"
 	"github.com/modernice/media-entity/gallery"
-	"github.com/modernice/media-entity/image"
 )
 
 // Gallery commands
@@ -57,28 +56,28 @@ type removeStack[StackID ID] struct {
 }
 
 // AddVariants returns the command to add a multiple [Variant]s to a [gallery.Stack] in a [*Gallery].
-func (c *Commands[StackID, ImageID]) AddVariants(galleryID uuid.UUID, stackID StackID, variants []VariantToAdd[ImageID]) command.Cmd[addVariants[StackID, ImageID]] {
+func (c *Commands[StackID, ImageID]) AddVariants(galleryID uuid.UUID, stackID StackID, variants []gallery.Image[ImageID]) command.Cmd[addVariants[StackID, ImageID]] {
 	return command.New(AddVariantsCmd, addVariants[StackID, ImageID]{stackID, variants}, command.Aggregate(c.aggregateName, galleryID))
 }
 
-type VariantToAdd[ImageID ID] struct {
-	VariantID ImageID
-	Image     image.Image
-}
+// type VariantToAdd[ImageID ID] struct {
+// 	VariantID ImageID
+// 	Image     image.Image
+// }
 
 type addVariants[StackID, ImageID ID] struct {
 	StackID  StackID
-	Variants []VariantToAdd[ImageID]
+	Variants []gallery.Image[ImageID]
 }
 
 // AddVariant returns the command to add a new [Variant] to a [gallery.Stack] in a [*Gallery].
-func (c *Commands[StackID, ImageID]) AddVariant(galleryID uuid.UUID, stackID StackID, variantID ImageID, img image.Image) command.Cmd[addVariant[StackID, ImageID]] {
-	return command.New(AddVariantCmd, addVariant[StackID, ImageID]{stackID, VariantToAdd[ImageID]{variantID, img}}, command.Aggregate(c.aggregateName, galleryID))
+func (c *Commands[StackID, ImageID]) AddVariant(galleryID uuid.UUID, stackID StackID, img gallery.Image[ImageID]) command.Cmd[addVariant[StackID, ImageID]] {
+	return command.New(AddVariantCmd, addVariant[StackID, ImageID]{stackID, img}, command.Aggregate(c.aggregateName, galleryID))
 }
 
 type addVariant[StackID, ImageID ID] struct {
 	StackID StackID
-	VariantToAdd[ImageID]
+	Variant gallery.Image[ImageID]
 }
 
 // ClearStack returns the command to clear the variants of a [gallery.Stack].

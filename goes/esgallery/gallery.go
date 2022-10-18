@@ -86,12 +86,12 @@ func New[StackID, ImageID ID, T Target](target T) *Gallery[StackID, ImageID, T] 
 	}, RemoveStackCmd)
 
 	command.ApplyWith(target, func(load addVariants[StackID, ImageID]) error {
-		_, err := g.NewVariants(load.StackID, load.Variants)
+		_, err := g.AddVariants(load.StackID, load.Variants)
 		return err
 	}, AddVariantsCmd)
 
 	command.ApplyWith(target, func(load addVariant[StackID, ImageID]) error {
-		_, err := g.NewVariant(load.StackID, load.VariantID, load.Image)
+		_, err := g.AddVariant(load.StackID, load.Variant)
 		return err
 	}, AddVariantCmd)
 
@@ -203,32 +203,6 @@ func (g *Gallery[StackID, ImageID, T]) clearStack(evt event.Of[StackID]) {
 			return
 		}
 	}
-}
-
-func (g *Gallery[StackID, ImageID, Target]) NewVariants(stackID StackID, variants []VariantToAdd[ImageID]) (gallery.Stack[StackID, ImageID], error) {
-	var stack gallery.Stack[StackID, ImageID]
-	var added []gallery.Image[ImageID]
-	if err := g.DryRun(func(g *gallery.Base[StackID, ImageID]) error {
-		var err error
-		for _, variant := range variants {
-			if stack, err = g.NewVariant(stackID, variant.VariantID, variant.Image); err != nil {
-				return err
-			}
-			if v, ok := stack.Variant(variant.VariantID); ok {
-				added = append(added, v)
-			}
-		}
-		return nil
-	}); err != nil {
-		return stack, err
-	}
-
-	aggregate.Next(g.target, VariantsAdded, VariantsAddedData[StackID, ImageID]{
-		StackID:  stackID,
-		Variants: added,
-	})
-
-	return stack, nil
 }
 
 // NewVariant is the event-sourced variant of [*gallery.Base.NewVariant].
