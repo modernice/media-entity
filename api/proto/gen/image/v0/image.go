@@ -1,6 +1,7 @@
 package imagepb
 
 import (
+	filepb "github.com/modernice/media-entity/api/proto/gen/file/v0"
 	"github.com/modernice/media-entity/image"
 	"github.com/modernice/media-entity/internal/mapx"
 	"github.com/modernice/media-entity/internal/slicex"
@@ -8,7 +9,7 @@ import (
 
 func New(img image.Image) *Image {
 	return &Image{
-		Storage:      NewStorage(img.Storage),
+		Storage:      filepb.NewStorage(img.Storage),
 		Filename:     img.Filename,
 		Filesize:     int64(img.Filesize),
 		Dimensions:   NewDimensions(img.Dimensions),
@@ -27,20 +28,6 @@ func (img *Image) AsImage() image.Image {
 		Names:        mapx.Ensure(img.GetNames()),
 		Descriptions: mapx.Ensure(img.GetDescriptions()),
 		Tags:         slicex.Ensure(img.GetTags()),
-	}
-}
-
-func NewStorage(s image.Storage) *Storage {
-	return &Storage{
-		Provider: s.Provider,
-		Path:     s.Path,
-	}
-}
-
-func (s *Storage) AsStorage() image.Storage {
-	return image.Storage{
-		Provider: s.GetProvider(),
-		Path:     s.GetPath(),
 	}
 }
 

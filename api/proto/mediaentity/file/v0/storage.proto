@@ -1,0 +1,9 @@
+syntax = "proto3";
+package mediaentity.file.v0;
+option go_package = "github.com/modernice/media-entity/api/proto/gen/file/v0;filepb";
+
+// Storage provides the storage information of a file.
+message Storage {
+	string provider = 1;
+	string path = 2;
+}
