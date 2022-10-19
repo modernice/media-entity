@@ -26,9 +26,7 @@ func NewUploader[StackID, ImageID ID](storage Storage) *Uploader[StackID, ImageI
 }
 
 // UploadNew uploads a new image to the provided gallery and returns the newly
-// created [gallery.Stack]. The returned [gallery.Image] can be added to a
-// [*Gallery], either by calling [*Gallery.AddVariant], or by applying a
-// [ProcessorResult] to the gallery ([ApplyProcessorResult]).
+// created [gallery.Stack].
 //
 // The filesize and dimensions of the uploaded image are determined while
 // uploading to storage, and set on the [gallery.Image] in the returned
