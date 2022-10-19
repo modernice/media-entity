@@ -1,6 +1,7 @@
 package image
 
 import (
+	"github.com/modernice/media-entity/file"
 	"github.com/modernice/media-entity/internal/maps"
 	"github.com/modernice/media-tools/image"
 )
@@ -24,11 +25,7 @@ func NewTags(tags ...string) Tags {
 	return image.NewTags(tags...)
 }
 
-// Storage provides the storage information for an [Image].
-type Storage struct {
-	Provider string `json:"provider"`
-	Path     string `json:"path"`
-}
+type Storage = file.Storage
 
 // Dimensions are the width and height of an image, in pixels.
 type Dimensions = image.Dimensions
