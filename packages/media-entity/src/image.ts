@@ -1,4 +1,5 @@
 import { ResponseOf } from '@modernice/typed-response'
+import { Storage } from './storage.js'
 
 /**
  * Image represents an image that may be stored in (cloud) storage.
@@ -7,7 +8,7 @@ export interface Image<Languages extends string = string> {
   /**
    * Storage location of the image.
    */
-  storage: ImageStorage
+  storage: Storage
 
   /**
    * Filename of the image (without the directory).
@@ -35,14 +36,6 @@ export interface Image<Languages extends string = string> {
   descriptions: { [lang in Languages]?: string }
 
   tags: string[]
-}
-
-/**
- * ImageStorage provides the storage location of an {@link Image}.
- */
-export interface ImageStorage {
-  provider: string
-  path: string
 }
 
 /**
