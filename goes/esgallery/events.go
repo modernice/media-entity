@@ -74,4 +74,5 @@ func RegisterEvents[StackID, ImageID ID](r codec.Registerer) {
 	codec.Register[StackUntaggedData[StackID]](r, StackUntagged)
 	codec.Register[[]StackID](r, Sorted)
 	codec.Register[struct{}](r, Cleared)
+	codec.Register[StackID](r, StackProcessed)
 }
