@@ -17,6 +17,7 @@ import (
 	"github.com/modernice/media-entity/internal/testx"
 	imgtools "github.com/modernice/media-tools/image"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 func TestProcessor_Process(t *testing.T) {
@@ -434,5 +435,11 @@ func testProcessorResult(
 
 	if len(storage.Files()) != 4 {
 		t.Fatalf("expected 4 files in storage; got %d\n%s", len(storage.Files()), maps.Keys(storage.Files()))
+	}
+
+	if result.Applied {
+		if !slices.Contains(g.ProcessedStacks(), stack.ID) {
+			t.Fatalf("expected ProcessedStacks() to contain stack %s\n%v", stack.ID, g.ProcessedStacks())
+		}
 	}
 }

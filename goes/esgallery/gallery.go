@@ -7,6 +7,7 @@ import (
 	"github.com/modernice/media-entity/gallery"
 	"github.com/modernice/media-entity/image"
 	"github.com/modernice/media-entity/internal/slicex"
+	"golang.org/x/exp/slices"
 )
 
 // Target is an event-sourced aggregate that acts as a gallery.
@@ -40,7 +41,15 @@ type ID = gallery.ID
 type Gallery[StackID, ImageID ID, T Target] struct {
 	*gallery.Base[StackID, ImageID]
 
-	target T
+	target          T
+	processedStacks []StackID
+}
+
+// ProcessedStacks returns ids of the stacks that have been processed by a post-processor.
+func (g *Gallery[StackID, ImageID, T]) ProcessedStacks() []StackID {
+	out := make([]StackID, len(g.processedStacks))
+	copy(out, g.processedStacks)
+	return out
 }
 
 // New returns a new [*Gallery] that applies events and commands to the provided
@@ -74,6 +83,7 @@ func New[StackID, ImageID ID, T Target](target T) *Gallery[StackID, ImageID, T] 
 	event.ApplyWith(target, g.untag, StackUntagged)
 	event.ApplyWith(target, g.sort, Sorted)
 	event.ApplyWith(target, g.clear, Cleared)
+	event.ApplyWith(target, g.stackProcessed, StackProcessed)
 
 	command.ApplyWith(target, func(load addStack[StackID, ImageID]) error {
 		_, err := g.NewStack(load.StackID, load.Image)
@@ -418,4 +428,15 @@ func (g *Gallery[StackID, ImageID, T]) Clear() {
 
 func (g *Gallery[StackID, ImageID, T]) clear(event.Of[struct{}]) {
 	g.Base.Clear()
+}
+
+// MarkAsProcessed marks a [gallery.Stack] as being processed by a post-processor.
+func (g *Gallery[StackID, ImageID, T]) MarkAsProcessed(stackID StackID) {
+	if !slices.Contains(g.ProcessedStacks(), stackID) {
+		aggregate.Next(g.target, StackProcessed, stackID)
+	}
+}
+
+func (g *Gallery[StackID, ImageID, T]) stackProcessed(evt event.Of[StackID]) {
+	g.processedStacks = append(g.processedStacks, evt.Data())
 }

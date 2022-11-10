@@ -97,6 +97,9 @@ type ProcessableGallery[StackID, ImageID ID] interface {
 
 	// Tag adds tags to a [gallery.Stack].
 	Tag(StackID, ...string) (gallery.Stack[StackID, ImageID], error)
+
+	// MarkAsProcessed marks a [gallery.Stack] as being processed by a post-processor.
+	MarkAsProcessed(StackID)
 }
 
 // WasProcessed returns whether the given [gallery.Stack] was processed by a [*PostProcessor].
@@ -152,6 +155,8 @@ func (r ProcessorResult[StackID, ImageID]) Apply(g ProcessableGallery[StackID, I
 			return fmt.Errorf("tag stack as processed: %w", err)
 		}
 	}
+
+	g.MarkAsProcessed(r.StackID)
 
 	return nil
 }

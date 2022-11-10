@@ -20,6 +20,11 @@ const (
 	Cleared         = "esgallery.cleared"
 )
 
+// Non-aggregate events
+const (
+	StackProcessed = "esgallery.stack_processed"
+)
+
 // ProcessorTriggerEvents are the events that can trigger a [*Processor].
 var ProcessorTriggerEvents = []string{
 	StackAdded,
