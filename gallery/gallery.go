@@ -239,7 +239,7 @@ func (g *Base[StackID, ImageID]) Sort(sorting []StackID) {
 
 	previous := slicex.Map(g.Stacks, func(s Stack[StackID, ImageID]) StackID { return s.ID })
 
-	slices.SortFunc(g.Stacks, func(a, b Stack[StackID, ImageID]) bool {
+	slices.SortFunc(g.Stacks, func(a, b Stack[StackID, ImageID]) int {
 		idxA := slices.Index(sorting, a.ID)
 		idxB := slices.Index(sorting, b.ID)
 
@@ -249,14 +249,22 @@ func (g *Base[StackID, ImageID]) Sort(sorting []StackID) {
 		}
 
 		if idxB < 0 {
-			return true
+			return -1
 		}
 
 		if idxA < 0 {
-			return false
+			return 1
 		}
 
-		return idxA <= idxB
+		if idxA < idxB {
+			return -1
+		}
+
+		if idxA > idxB {
+			return 1
+		}
+
+		return 0
 	})
 }
 
